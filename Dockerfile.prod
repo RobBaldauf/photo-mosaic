@@ -1,0 +1,38 @@
+FROM python:3.7
+WORKDIR /photo_mosaic
+EXPOSE 8111
+
+# install python opencv (workaround for dependency bug)
+RUN apt-get update && apt-get install -y python3-opencv
+
+# Install python requirements
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+# download + unzip nsfw model
+RUN curl -LO https://github.com/GantMan/nsfw_model/releases/download/1.1.0/nsfw_mobilenet_v2_140_224.zip
+RUN unzip nsfw_mobilenet_v2_140_224.zip -d ./nsfw_model
+RUN rm -f nsfw_mobilenet_v2_140_224.zip
+
+# copy config
+COPY config/ ./config
+
+# set config for prod mode
+RUN sed -i '\
+    s/ENABLE_DOCUMENTATION=.*/ENABLE_DOCUMENTATION=false/g; \
+    s/ENABLE_AUTH=.*/ENABLE_AUTH=true/g; \
+    s/ENABLE_NSFW_CONTENT_FILTER=.*/ENABLE_NSFW_CONTENT_FILTER=true/g; \
+    s/NSFW_MODEL_PATH=.*/NSFW_MODEL_PATH=nsfw_model\/mobilenet_v2_140_224/g;' config/.env
+
+# generate JWT KEY and add to config file
+ARG JWT_SECRET
+COPY scripts/generate_api_key.py .
+RUN secret=$(python3 generate_api_key.py -s $JWT_SECRET) && sed -i "s/JWT_SECRET=.*/JWT_SECRET=$secret/g" config/.env && echo "JWT_KEY=$secret"
+RUN rm -f generate_api_key.py
+
+# copy code
+COPY run_app.sh .
+COPY app/ ./app
+
+# run app
+ENTRYPOINT ["./run_app.sh"]
