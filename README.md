@@ -59,7 +59,7 @@ docker run -t -i -p 8111:8111 -v <your_db_folder>:/db photo-mosaic:latest
 
 ## Run locally
 
-If you would like to run the service locally
+If don't want to use docker you can also install and run the service locally:
 
 ### Install
 
