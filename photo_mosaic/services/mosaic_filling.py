@@ -2,21 +2,21 @@ from typing import List, Optional, Tuple
 
 from fastapi import HTTPException
 
-from app.models.app_config import get_config
-from app.models.image_pixels import (
+from photo_mosaic.models.app_config import get_config
+from photo_mosaic.models.image_pixels import (
     IMAGE_PIXELS_CATEGORY_CURRENT,
     IMAGE_PIXELS_CATEGORY_ORIGINAL,
 )
-from app.models.raw_image import (
+from photo_mosaic.models.raw_image import (
     RAW_IMAGE_CURRENT_JPEG,
     RAW_IMAGE_ORIGINAL_JPEG,
     RawImage,
 )
-from app.models.segment import Segment
-from app.services.abstract_persistence import AbstractPersistenceService
-from app.services.mosaic_management import MosaicManagementService
-from app.services.nsfw import NSFWService
-from app.utils.data import (
+from photo_mosaic.models.segment import Segment
+from photo_mosaic.services.abstract_persistence import AbstractPersistenceService
+from photo_mosaic.services.mosaic_management import MosaicManagementService
+from photo_mosaic.services.nsfw import NSFWService
+from photo_mosaic.utils.image_processing import (
     HIGH_BRIGHTNESS,
     LOW_BRIGHTNESS,
     MEDIUM_BRIGHTNESS,
@@ -36,7 +36,9 @@ class MosaicFillingService:
         self.nsfw_service = nsfw_service
         self.mgmt_service = MosaicManagementService(persistence_service)
 
-    async def get_segment_sample(self, mosaic_id: str, query_image_bytes: bytes) -> Tuple[bytes, str]:
+    def get_segment_sample(self, mosaic_id: str, query_image_bytes: bytes) -> Tuple[bytes, str]:
+        if not self.persistence.mosaic_exists(mosaic_id):
+            raise HTTPException(status_code=404, detail=f"Mosaic {mosaic_id} does not exist.")
         query_image = bytes2pil(query_image_bytes)
 
         query_image = query_image.convert("RGB")
@@ -67,15 +69,24 @@ class MosaicFillingService:
 
         return pil2bytes(filtered_image), seg.id
 
-    async def fill_random_segment(self, mosaic_id: str, query_image_bytes: bytes, quick_fill: bool):
+    def fill_random_segment(self, mosaic_id: str, query_image_bytes: bytes, quick_fill: bool):
+        if not self.persistence.mosaic_exists(mosaic_id):
+            raise HTTPException(status_code=404, detail=f"Mosaic {mosaic_id} does not exist.")
         num_segments = 5 if quick_fill else 1
         for _ in range(num_segments):
             query_image = bytes2pil(query_image_bytes)
             brightness = get_brightness_category(query_image)
             segments = self._get_segment_sample(brightness, mosaic_id, 1)
-            await self.fill_segment(mosaic_id, query_image_bytes, segments[0].id)
+            if len(segments) > 0:
+                self.fill_segment(mosaic_id, query_image_bytes, segments[0].id)
 
-    async def fill_segment(self, mosaic_id: str, query_image_bytes: bytes, segment_id: str):
+    def fill_segment(self, mosaic_id: str, query_image_bytes: bytes, segment_id: str):
+        if not self.persistence.mosaic_exists(mosaic_id):
+            raise HTTPException(status_code=404, detail=f"Mosaic {mosaic_id} does not exist.")
+
+        if not self.persistence.segment_exists(segment_id):
+            raise HTTPException(status_code=404, detail=f"Segment {segment_id} does not exist.")
+
         query_image = bytes2pil(query_image_bytes)
         query_image = query_image.convert("RGB")
         # center crop image
@@ -125,7 +136,7 @@ class MosaicFillingService:
         self.persistence.upsert_raw_image(current_jpeg)
 
         if metadata.filled:
-            # in case the mosaic has already been filled, but a user is still using the app with this mosaic
+            # in case the mosaic has already been filled, but a user is still using the photo_mosaic with this mosaic
             # the segment will just be updated without touching the other segments
             self.persistence.upsert_segments([seg])
             self.persistence.commit()
@@ -152,10 +163,10 @@ class MosaicFillingService:
         # mark the mosaic as inactive and filled
         stats = self.persistence.get_segment_stats(mosaic_id)
         if stats[0] + stats[1] + stats[2] < get_config().num_segments_min:
-            await self._handle_mosaic_end(metadata)
+            self._handle_mosaic_end(metadata)
         self.persistence.disconnect()
 
-    async def _handle_mosaic_end(self, metadata):
+    def _handle_mosaic_end(self, metadata):
         metadata.filled = True
         metadata.active = False
         self.persistence.update_mosaic_metadata(metadata)
@@ -178,7 +189,7 @@ class MosaicFillingService:
                     original_mosaics.append(m_id)
             for i, m_id in enumerate(original_mosaics):
                 original_bytes = self.persistence.read_raw_image(m_id, RAW_IMAGE_ORIGINAL_JPEG).image_bytes
-                new_id = await self.mgmt_service.create_mosaic(original_bytes, metadata.mosaic_config)
+                new_id = self.mgmt_service.create_mosaic(original_bytes, metadata.mosaic_config)
                 new_metadata = self.persistence.read_mosaic_metadata(new_id)
                 new_metadata.original = False
                 if i == 0:

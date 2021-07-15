@@ -5,9 +5,11 @@ from fastapi import FastAPI
 from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.api import api
-from app.models.app_config import get_config
-from app.utils.utils import version
+from photo_mosaic.api.api import api
+from photo_mosaic.models.app_config import get_config
+
+# Show important api settings
+from photo_mosaic.utils.version import version
 
 docs_url = None
 if get_config().enable_documentation:
@@ -44,9 +46,16 @@ middleware = [
         expose_headers=["mosaic_id", "segment_id"],
     )
 ]
+print(f"Starting photo-mosaic service (v{version()})...")
 
 # setup api server
-app = FastAPI(title="Pixel Mosaic API", version=version(), middleware=middleware, docs_url=docs_url, redoc_url=None)
+app = FastAPI(
+    title="Photo Mosaic API",
+    version=version(),
+    middleware=middleware,
+    docs_url=docs_url,
+    redoc_url=None,
+)
 app.include_router(router=api)
 
 if __name__ == "__main__":

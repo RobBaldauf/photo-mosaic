@@ -7,12 +7,12 @@ from typing import Dict, List, Tuple
 import numpy as np
 from fastapi import HTTPException
 
-from app.models.image_pixels import ImagePixels
-from app.models.mosaic_config import MosaicConfig
-from app.models.mosaic_metadata import MosaicMetadata
-from app.models.raw_image import RawImage
-from app.models.segment import Segment
-from app.services.abstract_persistence import AbstractPersistenceService
+from photo_mosaic.models.image_pixels import ImagePixels
+from photo_mosaic.models.mosaic_config import MosaicConfig
+from photo_mosaic.models.mosaic_metadata import MosaicMetadata
+from photo_mosaic.models.raw_image import RawImage
+from photo_mosaic.models.segment import Segment
+from photo_mosaic.services.abstract_persistence import AbstractPersistenceService
 
 MOSAIC_METADATA_TABLE = "mosaic_metadata"
 SEGMENT_TABLE = "segments"
@@ -64,6 +64,12 @@ class SQLiteAbstractPersistenceService(AbstractPersistenceService):
         if self._connection:
             self._connection.close()
             self._connection = None
+
+    def mosaic_exists(self, mosaic_id: str) -> bool:
+        con = self._connect()
+        cur = con.cursor()
+        cur.execute(f"""SELECT EXISTS(SELECT 1 FROM {MOSAIC_METADATA_TABLE} WHERE id=?);""", (mosaic_id,))
+        return bool(cur.fetchone())
 
     def mosaic_count(self) -> int:
         con = self._connect()
@@ -271,6 +277,12 @@ class SQLiteAbstractPersistenceService(AbstractPersistenceService):
             )
         row = rows[0]
         return ImagePixels(mosaic_id=mosaic_id, category=category, pixel_array=row[0])
+
+    def segment_exists(self, segment_id: str) -> bool:
+        con = self._connect()
+        cur = con.cursor()
+        cur.execute(f"""SELECT EXISTS(SELECT 1 FROM {SEGMENT_TABLE} WHERE id=?);""", (segment_id,))
+        return bool(cur.fetchone())
 
     def upsert_segment(self, seg: Segment):
         con = self._connect()

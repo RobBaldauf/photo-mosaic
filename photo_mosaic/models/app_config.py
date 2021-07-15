@@ -5,7 +5,6 @@ from pydantic import BaseSettings
 
 
 class AppConfig(BaseSettings):
-
     # api config
     enable_documentation: bool
     cors_origins: List[str]
@@ -23,6 +22,7 @@ class AppConfig(BaseSettings):
 
     # Mosaic config
     unused_pixel_area_weight: int
+    original_image_max_size: int
 
     # segment config
     num_segments_start: int

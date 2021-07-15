@@ -45,7 +45,7 @@ docker build -t photo-mosaic --build-arg JWT_SECRET=<your_secret> -f Dockerfile.
 The output of the docker build should contain a line similar to this one:
 
 ```shell
-JWT_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhcHAiOiJwaG90by1tb3NhaWMiLCJpZCI6InBob3RvLW1vc2FpYy1hZG1pbiIsImV4cCI6MTY4OTI3OTU2NH0.A80yxWZ0rjvIi98qYZ0x1pyf1l2jH4YQExW75t2rrlU
+API_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhcHAiOiJwaG90by1tb3NhaWMiLCJpZCI6InBob3RvLW1vc2FpYy1hZG1pbiIsImV4cCI6MTY4OTI3OTU2NH0.A80yxWZ0rjvIi98qYZ0x1pyf1l2jH4YQExW75t2rrlU
 ```
 
 This is the API KEY you need to access the admin endpoints of the API.

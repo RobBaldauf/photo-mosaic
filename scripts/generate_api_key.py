@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 import jwt
 
-PAYLOAD = {"app": "photo-mosaic", "id": "photo-mosaic-admin"}
+PAYLOAD = {"photo_mosaic": "photo-mosaic", "id": "photo-mosaic-admin"}
 LIFETIME_DAYS = 365 * 2
 
 
@@ -15,7 +15,7 @@ def main(args):
     # print("Creating JWT-Key....")
     # print(f"JWT_KEY: {create_jwt_key(PAYLOAD, args.secret)}")
     # print(f"JWT_SECRET: {args.secret}")
-    print(create_jwt_key(PAYLOAD, args.secret))
+    print(f"\nAPI_KEY:{create_jwt_key(PAYLOAD, args.secret)}\n")
 
 
 def create_jwt_key(payload: dict, secret: str) -> str:

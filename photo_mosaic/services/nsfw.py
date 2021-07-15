@@ -5,7 +5,7 @@ import tensorflow as tf
 import tensorflow_hub as hub
 from PIL import Image
 
-from app.utils.data import pil2np
+from photo_mosaic.utils.image_processing import pil2np
 
 IMAGE_DIMS = (224, 224)
 DRAWINGS = 0

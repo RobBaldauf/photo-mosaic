@@ -1,10 +1,10 @@
 from abc import ABC
 from typing import Dict, List, Tuple
 
-from app.models.image_pixels import ImagePixels
-from app.models.mosaic_metadata import MosaicMetadata
-from app.models.raw_image import RawImage
-from app.models.segment import Segment
+from photo_mosaic.models.image_pixels import ImagePixels
+from photo_mosaic.models.mosaic_metadata import MosaicMetadata
+from photo_mosaic.models.raw_image import RawImage
+from photo_mosaic.models.segment import Segment
 
 
 class AbstractPersistenceService(ABC):
@@ -12,6 +12,12 @@ class AbstractPersistenceService(ABC):
         raise NotImplementedError()
 
     def disconnect(self):
+        raise NotImplementedError()
+
+    def mosaic_exists(self, mosaic_id: str) -> bool:
+        raise NotImplementedError()
+
+    def segment_exists(self, segment_id: str) -> bool:
         raise NotImplementedError()
 
     def mosaic_count(self) -> int:

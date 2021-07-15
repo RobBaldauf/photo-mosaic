@@ -5,17 +5,16 @@ from typing import Dict, Tuple
 
 import numpy as np
 from cv2 import cv2
-from fastapi import HTTPException
 from PIL import Image, ImageEnhance, ImageFilter
 from PIL.ImageStat import Stat
 
-from app.models.app_config import get_config
-from app.models.image_pixels import (
+from photo_mosaic.models.app_config import get_config
+from photo_mosaic.models.image_pixels import (
     IMAGE_PIXELS_CATEGORY_CURRENT,
     IMAGE_PIXELS_CATEGORY_ORIGINAL,
 )
-from app.models.raw_image import RAW_IMAGE_FILLING_GIF, RawImage
-from app.services.abstract_persistence import AbstractPersistenceService
+from photo_mosaic.models.raw_image import RAW_IMAGE_FILLING_GIF, RawImage
+from photo_mosaic.services.abstract_persistence import AbstractPersistenceService
 
 INVALID_BRIGHTNESS = -1
 LOW_BRIGHTNESS = 0
@@ -40,24 +39,6 @@ def np2pil(array: np.ndarray) -> Image:
 
 def pil2np(image: Image) -> np.ndarray:
     return np.array(image)
-
-
-def is_valid_uuid(uuid_string: str) -> bool:
-    try:
-        uuid.UUID(uuid_string)
-        return True
-    except ValueError:
-        return False
-
-
-def validate_request_uuid(uuid_string: str, id_label: str) -> str:
-    stripped_uuid = str(uuid_string).strip()
-    if is_valid_uuid(stripped_uuid):
-        return stripped_uuid
-    raise HTTPException(
-        status_code=400,
-        detail=f"Invalid {id_label} id: {stripped_uuid}!",
-    )
 
 
 def adapt_brightness(image: Image, brightness: float) -> Image:

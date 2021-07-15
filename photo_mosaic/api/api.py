@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.routers import admin_router, public_router
+from photo_mosaic.api.routers import admin_router, public_router
 
 api = APIRouter()
 api.include_router(public_router.router, tags=["public"])
