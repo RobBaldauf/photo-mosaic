@@ -18,7 +18,7 @@ FILTER_THRESHOLD = 0.5
 
 class NSFWService:
     """
-    https://github.com/GantMan/nsfw_model
+    Service for detecting adult content based on https://github.com/GantMan/nsfw_model
     """
 
     def __init__(self, model_path: str):
@@ -28,13 +28,29 @@ class NSFWService:
         self.model = self._load_model(model_path)
 
     @staticmethod
-    def _load_model(model_path):
+    def _load_model(model_path: str):
+        """
+        Load keras nsfw model
+        Args:
+            model_path: Path the model dir
+        Raises:
+            ValueError: If model does not exist.
+        """
         if model_path is None or not exists(model_path):
             raise ValueError("saved_model_path must be a valid directory of a saved model to load.")
         model = tf.keras.models.load_model(model_path, custom_objects={"KerasLayer": hub.KerasLayer})
         return model
 
-    def image_is_nsfw(self, image: Image):
+    def image_is_nsfw(self, image: Image) -> bool:
+        """
+        For a given image run inference and check whether adult content class predictions exceed a
+        defined threshold.
+        Args:
+            image: The PIL image to be checked
+
+        Returns: True if contains adult content, False otherwise
+
+        """
         img = image.resize(IMAGE_DIMS, Image.NEAREST)
         nd_image = pil2np(img).astype(float)
         nd_image /= 255.0

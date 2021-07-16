@@ -3,25 +3,15 @@ import logging
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, Response
 
-from photo_mosaic.models.app_config import get_config
-from photo_mosaic.services.mosaic_filling import MosaicFillingService
-from photo_mosaic.services.mosaic_management import MosaicManagementService
-from photo_mosaic.services.nsfw import NSFWService
-from photo_mosaic.services.sqlite_persistence import SQLiteAbstractPersistenceService
+from photo_mosaic.services.mosaic_filling import filling_service
+from photo_mosaic.services.mosaic_management import mgmt_service
 from photo_mosaic.utils.request_validation import validate_request_uuid
 
 router = APIRouter()
-persistence_service = SQLiteAbstractPersistenceService(get_config().sql_lite_path)
-if get_config().enable_nsfw_content_filter:
-    filling_service = MosaicFillingService(persistence_service, NSFWService(get_config().nsfw_model_path))
-else:
-    filling_service = MosaicFillingService(persistence_service)
-mgmt_service = MosaicManagementService(persistence_service)
 
 
 @router.get("/mosaic/list", name="list_all_mosaics", summary="List the ids of all available mosaics.")
 async def list_all_mosaics() -> JSONResponse:
-    # pylint: disable=unused-argument
     try:
         mosaic_list = mgmt_service.get_mosaic_list(filter_by="ALL")
         return JSONResponse(content={"mosaic_list": mosaic_list})
@@ -34,7 +24,6 @@ async def list_all_mosaics() -> JSONResponse:
 
 @router.get("/mosaic/list/active", name="list_active_mosaics", summary="List the id of the active mosaic.")
 async def list_active_mosaics() -> JSONResponse:
-    # pylint: disable=unused-argument
     try:
         mosaic_list = mgmt_service.get_mosaic_list(filter_by="ACTIVE")
         return JSONResponse(content={"mosaic_list": mosaic_list})
@@ -51,7 +40,6 @@ async def list_active_mosaics() -> JSONResponse:
     summary="List the ids of all original mosaics (Mosaics that " "were manually created by the user).",
 )
 async def list_original_mosaics() -> JSONResponse:
-    # pylint: disable=unused-argument
     try:
         mosaic_list = mgmt_service.get_mosaic_list(filter_by="ORIGINAL")
         return JSONResponse(content={"mosaic_list": mosaic_list})
@@ -68,7 +56,6 @@ async def list_original_mosaics() -> JSONResponse:
     summary="List the ids of all mosaics for which every " "segment has already been filled with an image.",
 )
 async def list_filled_mosaics() -> JSONResponse:
-    # pylint: disable=unused-argument
     try:
         mosaic_list = mgmt_service.get_mosaic_list(filter_by="FILLED")
         return JSONResponse(content={"mosaic_list": mosaic_list})
@@ -83,7 +70,6 @@ async def list_filled_mosaics() -> JSONResponse:
     "/mosaic/{mosaic_id}", name="get_mosaic_current", summary="Get the current state of a mosaic as a JPEG " "image."
 )
 async def get_mosaic_current(mosaic_id: str) -> Response:
-    # pylint: disable=unused-argument
     try:
         m_id = validate_request_uuid(mosaic_id, "mosaic")
         image_bytes = mgmt_service.get_mosaic_current_jpeg(m_id)
@@ -97,7 +83,6 @@ async def get_mosaic_current(mosaic_id: str) -> Response:
 
 @router.get("/mosaic/{mosaic_id}/metadata", name="get_mosaic_metadata", summary="Get the metadata of a mosaic as JSON.")
 async def get_mosaic_metadata(mosaic_id: str) -> JSONResponse:
-    # pylint: disable=unused-argument
     try:
         m_id = validate_request_uuid(mosaic_id, "mosaic")
         metadata = mgmt_service.get_mosaic_metadata(m_id)
@@ -115,7 +100,6 @@ async def get_mosaic_metadata(mosaic_id: str) -> JSONResponse:
     summary="Get the original image that was used to create a mosaic.",
 )
 async def get_mosaic_original(mosaic_id: str) -> Response:
-    # pylint: disable=unused-argument
     try:
         m_id = validate_request_uuid(mosaic_id, "mosaic")
         image_bytes = mgmt_service.get_mosaic_original_jpeg(m_id)
@@ -133,7 +117,6 @@ async def get_mosaic_original(mosaic_id: str) -> Response:
     summary="Get the filling process for a mosaic animated as a gif.",
 )
 async def get_mosaic_gif(mosaic_id: str) -> Response:
-    # pylint: disable=unused-argument
     try:
         m_id = validate_request_uuid(mosaic_id, "mosaic")
         image_bytes = mgmt_service.get_mosaic_filling_gif(m_id)
@@ -160,7 +143,6 @@ async def post_segment_sample(
         "returned as a 'stylised' version.",
     ),
 ) -> Response:
-    # pylint: disable=unused-argument
     input_image_bytes = await file.read()
     try:
         m_id = validate_request_uuid(mosaic_id, "mosaic")
@@ -191,7 +173,6 @@ async def post_mosaic_segment(
         ..., description="A portrait image that shall be merged with a segment and added " "to the mosaic."
     ),
 ) -> JSONResponse:
-    # pylint: disable=unused-argument
     try:
         input_image_bytes = await file.read()
         m_id = validate_request_uuid(mosaic_id, "mosaic")

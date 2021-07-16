@@ -4,19 +4,14 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.openapi.models import APIKey
 from fastapi.responses import JSONResponse
 
-from photo_mosaic.models.app_config import get_config
 from photo_mosaic.models.mosaic_config import MosaicConfig
 from photo_mosaic.services.auth import AuthService
-from photo_mosaic.services.mosaic_filling import MosaicFillingService
-from photo_mosaic.services.mosaic_management import MosaicManagementService
-from photo_mosaic.services.sqlite_persistence import SQLiteAbstractPersistenceService
+from photo_mosaic.services.mosaic_filling import filling_service
+from photo_mosaic.services.mosaic_management import mgmt_service
 from photo_mosaic.utils.request_validation import validate_request_uuid
 
 router = APIRouter()
 auth_service = AuthService()
-persistence_service = SQLiteAbstractPersistenceService(get_config().sql_lite_path)
-mgmt_service = MosaicManagementService(persistence_service)
-filling_service = MosaicFillingService(persistence_service)
 
 
 @router.post(
@@ -152,7 +147,7 @@ async def post_mosaic_segment_random(
     try:
         input_image_bytes = await file.read()
         m_id = validate_request_uuid(mosaic_id, "mosaic")
-        filling_service.fill_random_segment(m_id, input_image_bytes, quick_fill)
+        filling_service.fill_random_segments(m_id, input_image_bytes, quick_fill)
         return JSONResponse(content={"msg": "Segment filled!"}, headers={"mosaic_id": m_id})
     except HTTPException:
         raise

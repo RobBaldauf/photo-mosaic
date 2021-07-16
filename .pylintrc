@@ -64,8 +64,11 @@ disable=
     missing-docstring,
     protected-access,
     too-few-public-methods,
+    W9011, #missing-return-doc
+    W9012, #missing-return-type-doc
     # handled by black
     format
+
 
 
 [REPORTS]

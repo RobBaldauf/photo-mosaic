@@ -18,6 +18,8 @@ class NPArray(np.ndarray):
 
 
 class ImagePixels(BaseModel):
+    """Model holding image pixels as NP arrays (needed for quick calculation of updated binary images)"""
+
     mosaic_id: str
     category: int
     pixel_array: NPArray

@@ -10,6 +10,8 @@ ADMIN_ID = "photo-mosaic-admin"
 
 
 class AuthService:
+    """Simple key-based authentication service for admin endpoints (for serious authentication switch to OAuth2.0)"""
+
     async def admin_auth(self, api_key: str = Security(API_KEY)):
         return await self._auth(api_key, ADMIN_ID)
 
