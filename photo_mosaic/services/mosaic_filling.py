@@ -179,7 +179,7 @@ class MosaicFillingService:
         # check whether the total number of available segments is smaller then the required minimum
         # mark the mosaic as inactive and filled
         stats = db.get_segment_stats(mosaic_id)
-        if stats[0] + stats[1] + stats[2] < get_config().num_segments_min:
+        if stats[0] + stats[1] + stats[2] < get_config().num_segments_min and not metadata.filled:
             self._handle_mosaic_end(metadata)
 
     def _handle_mosaic_end(self, metadata: MosaicMetadata):
@@ -195,6 +195,21 @@ class MosaicFillingService:
         db.update_mosaic_metadata(metadata)
         db.commit()
 
+        # fill remaining unfilled segments with original data and update artefacts
+        orig_pixels = db.read_image_pixels(metadata.id, IMAGE_PIXELS_CATEGORY_ORIGINAL)
+        current_pixels = db.read_image_pixels(metadata.id, IMAGE_PIXELS_CATEGORY_CURRENT)
+        segments = db.get_segments(mosaic_id=metadata.id, filled=False, fillable=True)
+        for seg in segments:
+            segment_data = orig_pixels.pixel_array[seg.y_min : seg.y_max, seg.x_min : seg.x_max]
+            current_pixels.pixel_array[seg.y_min : seg.y_max, seg.x_min : seg.x_max] = segment_data
+        db.upsert_image_pixels(current_pixels)
+        current_jpeg = RawImage(
+            mosaic_id=metadata.id,
+            category=RAW_IMAGE_CURRENT_JPEG,
+            image_bytes=pil2bytes(np2pil(current_pixels.pixel_array)),
+        )
+        db.upsert_raw_image(current_jpeg)
+
         # check if other fillable mosaics are available
         next_active_mosaic_id = self._get_active_mosaic_id()
         if next_active_mosaic_id:
@@ -205,6 +220,7 @@ class MosaicFillingService:
             db.commit()
         else:
             # no fillable mosaics are available -> clone all original mosaics and set the first of them as active
+            # to ensure endless filling of mosaics
             mosaic_list = db.read_mosaic_list()
             original_mosaics = []
             for m_id, _, _, _, original in mosaic_list:

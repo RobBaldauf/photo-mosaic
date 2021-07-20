@@ -22,7 +22,7 @@ IMAGE_PIXELS_TABLE = "image_pixels"
 class SQLitePersistenceService:
     """
     A simple service for interacting with a raw sqlite3 db backend.
-    (Chosen for performance advantages over SQLAlchemy and no need for scalability)
+    (Chosen over SQLAlchemy for performance advantages)
     """
 
     def __init__(self, path: str):
