@@ -10,7 +10,7 @@ Two docker files are available for the API:
 
 - Development ([Dockerfile](Dockerfile))
   - API documentation accessible via
-    [http://127.0.0.1:8000/documentation](http://127.0.0.1:8000/documentation)
+    [http://127.0.0.1:8111/documentation](http://127.0.0.1:8111/documentation)
   - No authentication
   - No content filtering
 - Production ([Dockerfile.prod](Dockerfile.prod))
