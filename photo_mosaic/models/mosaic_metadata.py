@@ -1,9 +1,11 @@
 from pydantic import BaseModel
 
-from app.models.mosaic_config import MosaicConfig
+from photo_mosaic.models.mosaic_config import MosaicConfig
 
 
 class MosaicMetadata(BaseModel):
+    """The main model for mosaics holding all relevant metadata"""
+
     id: str
     idx: int
     active: bool

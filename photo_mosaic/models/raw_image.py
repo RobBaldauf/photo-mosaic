@@ -8,6 +8,8 @@ RAW_IMAGE_FILLED_SMALL_JPEG = 4
 
 
 class RawImage(BaseModel):
+    """Model for binary images (e.g. jpeg, gif)"""
+
     mosaic_id: str
     category: int
     image_bytes: bytes

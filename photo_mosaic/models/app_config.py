@@ -5,6 +5,7 @@ from pydantic import BaseSettings
 
 
 class AppConfig(BaseSettings):
+    """Model holding the app configuration"""
 
     # api config
     enable_documentation: bool
@@ -22,6 +23,9 @@ class AppConfig(BaseSettings):
     sql_lite_path: str
 
     # Mosaic config
+    original_image_max_size: int
+    gif_image_max_size: int
+    sample_image_max_size: int
     unused_pixel_area_weight: int
 
     # segment config

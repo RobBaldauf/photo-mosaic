@@ -1,4 +1,3 @@
-import atexit
 import io
 import os
 import sqlite3
@@ -7,12 +6,12 @@ from typing import Dict, List, Tuple
 import numpy as np
 from fastapi import HTTPException
 
-from app.models.image_pixels import ImagePixels
-from app.models.mosaic_config import MosaicConfig
-from app.models.mosaic_metadata import MosaicMetadata
-from app.models.raw_image import RawImage
-from app.models.segment import Segment
-from app.services.abstract_persistence import AbstractPersistenceService
+from photo_mosaic.models.app_config import get_config
+from photo_mosaic.models.image_pixels import ImagePixels
+from photo_mosaic.models.mosaic_config import MosaicConfig
+from photo_mosaic.models.mosaic_metadata import MosaicMetadata
+from photo_mosaic.models.raw_image import RawImage
+from photo_mosaic.models.segment import Segment
 
 MOSAIC_METADATA_TABLE = "mosaic_metadata"
 SEGMENT_TABLE = "segments"
@@ -20,60 +19,51 @@ RAW_IMAGE_TABLE = "raw_images"
 IMAGE_PIXELS_TABLE = "image_pixels"
 
 
-def _write_np_array(array):
-    byte_arr = io.BytesIO()
-    np.save(byte_arr, array)
-    byte_arr.seek(0)
-    return sqlite3.Binary(byte_arr.read())
+class SQLitePersistenceService:
+    """
+    A simple service for interacting with a raw sqlite3 db backend.
+    (Chosen over SQLAlchemy for performance advantages)
+    """
 
-
-def _read_np_array(blob):
-    byte_arr = io.BytesIO(blob)
-    byte_arr.seek(0)
-    return np.load(byte_arr)
-
-
-sqlite3.register_adapter(np.ndarray, _write_np_array)
-sqlite3.register_converter("array", _read_np_array)
-
-
-class SQLiteAbstractPersistenceService(AbstractPersistenceService):
     def __init__(self, path: str):
         if not os.path.isdir(path):
             raise ValueError(f"SQL_LITE_PATH {path} is not a directory!")
 
         self._path = os.path.join(path, "mosaic.db")
         self._connection = None
-        atexit.register(self._destroy)
 
-    def _destroy(self):
-        self.disconnect()
-
-    def _connect(self):
+    def connect(self):
         if not self._connection:
-            if not os.path.isfile(self._path):
+            if os.path.isfile(self._path):
+                self._connection = sqlite3.connect(self._path, detect_types=sqlite3.PARSE_DECLTYPES)
+            else:
+                self._connection = sqlite3.connect(self._path, detect_types=sqlite3.PARSE_DECLTYPES)
                 self._init_db()
-            self._connection = sqlite3.connect(self._path, detect_types=sqlite3.PARSE_DECLTYPES)
         return self._connection
 
     def commit(self):
-        if self._connection:
-            self._connection.commit()
+        self._connection.commit()
 
     def disconnect(self):
         if self._connection:
             self._connection.close()
             self._connection = None
 
+    def mosaic_exists(self, mosaic_id: str) -> bool:
+        con = self.connect()
+        cur = con.cursor()
+        cur.execute(f"""SELECT EXISTS(SELECT 1 FROM {MOSAIC_METADATA_TABLE} WHERE id=?);""", (mosaic_id,))
+        return bool(cur.fetchone()[0])
+
     def mosaic_count(self) -> int:
-        con = self._connect()
+        con = self.connect()
         cur = con.cursor()
         cur.execute(f"""SELECT COUNT(*) FROM {MOSAIC_METADATA_TABLE};""")
         num = cur.fetchone()[0]
         return num
 
     def read_mosaic_list(self) -> List[Tuple[str, int, bool, bool, bool]]:
-        con = self._connect()
+        con = self.connect()
         cur = con.cursor()
         query = f"""SELECT id, idx, active, filled, original FROM {MOSAIC_METADATA_TABLE};"""
         cur.execute(query)
@@ -81,7 +71,7 @@ class SQLiteAbstractPersistenceService(AbstractPersistenceService):
         return rows
 
     def insert_mosaic_metadata(self, metadata: MosaicMetadata):
-        con = self._connect()
+        con = self.connect()
         cur = con.cursor()
         cur.execute(
             f"""INSERT OR REPLACE INTO {MOSAIC_METADATA_TABLE} (id, active, filled,
@@ -110,7 +100,7 @@ class SQLiteAbstractPersistenceService(AbstractPersistenceService):
         )
 
     def update_mosaic_metadata(self, metadata: MosaicMetadata):
-        con = self._connect()
+        con = self.connect()
         cur = con.cursor()
         cur.execute(
             f"""INSERT OR REPLACE INTO {MOSAIC_METADATA_TABLE} (id, idx, active, filled,
@@ -140,7 +130,7 @@ class SQLiteAbstractPersistenceService(AbstractPersistenceService):
         )
 
     def read_mosaic_metadata(self, mosaic_id: str, active_only: bool = False) -> MosaicMetadata:
-        con = self._connect()
+        con = self.connect()
         cur = con.cursor()
         query = f"""SELECT num_segments, mosaic_background_brightness, mosaic_blend_value, segment_blend_value,
                 segment_blur_low, segment_blur_medium, segment_blur_high, idx, active, filled, original, segment_width,
@@ -197,7 +187,7 @@ class SQLiteAbstractPersistenceService(AbstractPersistenceService):
                 new_active = m_id
 
         if exists:
-            con = self._connect()
+            con = self.connect()
             cur = con.cursor()
             cur.execute(f"""DELETE FROM {MOSAIC_METADATA_TABLE} WHERE id=?;""", (mosaic_id,))
             if new_active:
@@ -206,7 +196,7 @@ class SQLiteAbstractPersistenceService(AbstractPersistenceService):
             raise HTTPException(status_code=404, detail=f"Mosaic {mosaic_id} does not exist.")
 
     def upsert_raw_image(self, raw_image: RawImage):
-        con = self._connect()
+        con = self.connect()
         cur = con.cursor()
         cur.execute(
             f"""INSERT OR REPLACE INTO {RAW_IMAGE_TABLE} (mosaic_id, category, image_bytes)
@@ -219,7 +209,7 @@ class SQLiteAbstractPersistenceService(AbstractPersistenceService):
         )
 
     def read_raw_image(self, mosaic_id: str, category: int) -> RawImage:
-        con = self._connect()
+        con = self.connect()
         cur = con.cursor()
         cur.execute(
             f"""SELECT image_bytes FROM {RAW_IMAGE_TABLE}
@@ -240,7 +230,7 @@ class SQLiteAbstractPersistenceService(AbstractPersistenceService):
         return RawImage(mosaic_id=mosaic_id, category=category, image_bytes=row[0])
 
     def upsert_image_pixels(self, image_pixels: ImagePixels):
-        con = self._connect()
+        con = self.connect()
         cur = con.cursor()
         cur.execute(
             f"""INSERT OR REPLACE INTO {IMAGE_PIXELS_TABLE} (mosaic_id, category, pixel_array)
@@ -253,7 +243,7 @@ class SQLiteAbstractPersistenceService(AbstractPersistenceService):
         )
 
     def read_image_pixels(self, mosaic_id: str, category: int) -> ImagePixels:
-        con = self._connect()
+        con = self.connect()
         cur = con.cursor()
         cur.execute(
             f"""SELECT pixel_array FROM {IMAGE_PIXELS_TABLE} WHERE mosaic_id=? AND category=?;""",
@@ -272,8 +262,14 @@ class SQLiteAbstractPersistenceService(AbstractPersistenceService):
         row = rows[0]
         return ImagePixels(mosaic_id=mosaic_id, category=category, pixel_array=row[0])
 
+    def segment_exists(self, segment_id: str) -> bool:
+        con = self.connect()
+        cur = con.cursor()
+        cur.execute(f"""SELECT EXISTS(SELECT 1 FROM {SEGMENT_TABLE} WHERE id=?);""", (segment_id,))
+        return bool(cur.fetchone()[0])
+
     def upsert_segment(self, seg: Segment):
-        con = self._connect()
+        con = self.connect()
         cur = con.cursor()
         cur.execute(
             f"""INSERT OR REPLACE INTO {SEGMENT_TABLE} (id, mosaic_id, row_idx, col_idx, x_min, x_max, y_min, y_max,
@@ -295,7 +291,7 @@ class SQLiteAbstractPersistenceService(AbstractPersistenceService):
         )
 
     def upsert_segments(self, segments: List[Segment]):
-        con = self._connect()
+        con = self.connect()
         cur = con.cursor()
         for seg in segments:
             cur.execute(
@@ -318,7 +314,7 @@ class SQLiteAbstractPersistenceService(AbstractPersistenceService):
             )
 
     def get_segment_stats(self, mosaic_id: str) -> Dict[int, int]:
-        con = self._connect()
+        con = self.connect()
         cur = con.cursor()
         cur.execute(
             f"""SELECT brightness, COUNT(id) FROM {SEGMENT_TABLE}
@@ -365,7 +361,7 @@ class SQLiteAbstractPersistenceService(AbstractPersistenceService):
         if limit > 0:
             query += f" LIMIT {limit}"
             query += f" OFFSET {offset};"
-        con = self._connect()
+        con = self.connect()
         cur = con.cursor()
         cur.execute(query, where_values)
         rows = cur.fetchall()
@@ -391,8 +387,7 @@ class SQLiteAbstractPersistenceService(AbstractPersistenceService):
         return segments
 
     def _init_db(self):
-        con = sqlite3.connect(self._path, detect_types=sqlite3.PARSE_DECLTYPES)
-        cur = con.cursor()
+        cur = self._connection.cursor()
         cur.execute(
             f"""CREATE TABLE {MOSAIC_METADATA_TABLE}
                            (idx INTEGER PRIMARY KEY,
@@ -461,4 +456,30 @@ class SQLiteAbstractPersistenceService(AbstractPersistenceService):
                             )"""
         )
         self.commit()
-        self.disconnect()
+
+
+def _write_np_array(array):
+    """
+    Serialize np array
+    """
+    byte_arr = io.BytesIO()
+    np.save(byte_arr, array)
+    byte_arr.seek(0)
+    return sqlite3.Binary(byte_arr.read())
+
+
+def _read_np_array(blob):
+    """
+    Deserialize np array
+    """
+    byte_arr = io.BytesIO(blob)
+    byte_arr.seek(0)
+    return np.load(byte_arr)
+
+
+# register serialization/deserialization for np arrays
+sqlite3.register_adapter(np.ndarray, _write_np_array)
+sqlite3.register_converter("array", _read_np_array)
+
+# initialize SQLite Service
+db = SQLitePersistenceService(get_config().sql_lite_path)

@@ -3,98 +3,111 @@ import random
 import uuid
 from typing import List, Tuple
 
-from fastapi import HTTPException
 from PIL.Image import Image
 
-from app.models.app_config import get_config
-from app.models.image_pixels import (
+from photo_mosaic.models.app_config import get_config
+from photo_mosaic.models.image_pixels import (
     IMAGE_PIXELS_CATEGORY_CURRENT,
     IMAGE_PIXELS_CATEGORY_ORIGINAL,
     ImagePixels,
 )
-from app.models.mosaic_config import MosaicConfig
-from app.models.mosaic_metadata import MosaicMetadata
-from app.models.raw_image import (
+from photo_mosaic.models.mosaic_config import MosaicConfig
+from photo_mosaic.models.mosaic_metadata import MosaicMetadata
+from photo_mosaic.models.raw_image import (
     RAW_IMAGE_CURRENT_JPEG,
     RAW_IMAGE_FILLING_GIF,
     RAW_IMAGE_ORIGINAL_JPEG,
     RawImage,
 )
-from app.models.segment import Segment
-from app.services.abstract_persistence import AbstractPersistenceService
-from app.utils.data import (
+from photo_mosaic.models.segment import Segment
+from photo_mosaic.services.persistence import db
+from photo_mosaic.utils.image_processing import (
     HIGH_BRIGHTNESS,
     LOW_BRIGHTNESS,
     MEDIUM_BRIGHTNESS,
     adapt_brightness,
     bytes2pil,
-    generate_id,
     get_brightness_category,
+    get_image_center,
     get_segment_config,
     mosaic_2_gif,
     np2pil,
     pil2bytes,
     pil2np,
 )
+from photo_mosaic.utils.request_validation import generate_id
 
 
 class MosaicManagementService:
     """Service for creation, modification, deletion and retrieval of mosaic data"""
 
-    def __init__(self, persistence_service: AbstractPersistenceService):
-        self.persistence = persistence_service
-
-    async def create_mosaic(self, image_bytes: bytes, config: MosaicConfig) -> str:
+    def create_mosaic(self, image_bytes: bytes, config: MosaicConfig) -> str:
         """
         Create a new mosaic image (including its metadata, np pixel_arrays, segements and binary image files)
-        :param image_bytes: The binary image to create a mosaic from
-        :param config: The configuration for the mosaic creation process
-        :return: The mosaic id (UUID)
+        Args:
+            image_bytes: The binary image to create a mosaic from
+            config: The configuration for the mosaic creation process
+
+        Returns: The mosaic id (UUID)
+
         """
         # create metadata + original image
         metadata, image = self._create_mosaic_metadata(image_bytes, config)
-        self.persistence.insert_mosaic_metadata(metadata)
+        db.insert_mosaic_metadata(metadata)
 
         # create original jpeg
-        original_jpeg = RawImage(mosaic_id=metadata.id, category=RAW_IMAGE_ORIGINAL_JPEG, image_bytes=pil2bytes(image))
-        self.persistence.upsert_raw_image(original_jpeg)
+        original = image.copy()
+        original.thumbnail((get_config().original_image_max_size, get_config().original_image_max_size))
+        original_jpeg = RawImage(
+            mosaic_id=metadata.id, category=RAW_IMAGE_ORIGINAL_JPEG, image_bytes=pil2bytes(original)
+        )
+        db.upsert_raw_image(original_jpeg)
 
         # create original image pixels (np)
         original_pixels = ImagePixels(
             mosaic_id=metadata.id, category=IMAGE_PIXELS_CATEGORY_ORIGINAL, pixel_array=pil2np(image)
         )
-        self.persistence.upsert_image_pixels(original_pixels)
+        db.upsert_image_pixels(original_pixels)
 
         # create current jpeg
         bg_pil_image = adapt_brightness(image, config.mosaic_background_brightness)
         current_jpeg = RawImage(
             mosaic_id=metadata.id, category=RAW_IMAGE_CURRENT_JPEG, image_bytes=pil2bytes(bg_pil_image)
         )
-        self.persistence.upsert_raw_image(current_jpeg)
+        db.upsert_raw_image(current_jpeg)
 
         # create current image pixels (np)
         current_pixels = ImagePixels(
             mosaic_id=metadata.id, category=IMAGE_PIXELS_CATEGORY_CURRENT, pixel_array=pil2np(bg_pil_image)
         )
-        self.persistence.upsert_image_pixels(current_pixels)
+        db.upsert_image_pixels(current_pixels)
 
         # create segments
         segments = self._create_segments(metadata, original_pixels)
-        self.persistence.upsert_segments(segments)
+        db.upsert_segments(segments)
 
         # Commit changes to db
-        self.persistence.commit()
+        db.commit()
 
         # create filling gif animation
-        gif_image = mosaic_2_gif(persistence=self.persistence, mosaic_id=metadata.id)
-        self.persistence.upsert_raw_image(gif_image)
-        self.persistence.commit()
-        self.persistence.disconnect()
+        gif_image = mosaic_2_gif(mosaic_id=metadata.id)
+        db.upsert_raw_image(gif_image)
+        db.commit()
         return metadata.id
 
-    def _create_mosaic_metadata(self, image_bytes: bytes, mosaic_cfg: MosaicConfig) -> Tuple[MosaicMetadata, Image]:
+    @staticmethod
+    def _create_mosaic_metadata(image_bytes: bytes, mosaic_cfg: MosaicConfig) -> Tuple[MosaicMetadata, Image]:
+        """
+        Create the metadata object for mosaic
+        Args:
+            image_bytes: The binary image to create a mosaic from
+            mosaic_cfg: The configuration for the mosaic creation process
+
+        Returns: (the metadata object, the query image)
+
+        """
         # if no other mosaic exists set this to active
-        is_active = self.persistence.mosaic_count() == 0
+        is_active = db.mosaic_count() == 0
 
         # calculate metadata
         image = bytes2pil(image_bytes)
@@ -120,9 +133,21 @@ class MosaicManagementService:
         )
         return metadata, image
 
-    def _create_segments(self, metadata: MosaicMetadata, pixels: ImagePixels) -> List[Segment]:
+    @staticmethod
+    def _create_segments(metadata: MosaicMetadata, pixels: ImagePixels) -> List[Segment]:
+        """
+        Create the segments (and their metadata) for a mosaic image based on the mosaic metadata.
+        Segments will be separated based on their brightness (low,medium,high).
+        Random segments will be chosen as start segments for the filling process.
+        Args:
+            metadata: The mosaic metadata object
+            pixels: The original image pixels
+
+        Returns: A list of segment objects
+
+        """
         # calculate the center of the image
-        row_min, col_min, row_max, col_max = self._get_image_center(metadata)
+        row_min, col_min, row_max, col_max = get_image_center(metadata)
         center = "center"
         edge = "edge"
         segments: dict = {center: {0: [], 1: [], 2: []}, edge: {0: [], 1: [], 2: []}}
@@ -151,8 +176,6 @@ class MosaicManagementService:
                     position = center
                 else:
                     position = edge
-                if new_seg.brightness not in [LOW_BRIGHTNESS, MEDIUM_BRIGHTNESS, HIGH_BRIGHTNESS]:
-                    raise HTTPException(status_code=400, detail="Invalid image data")
                 segments[position][new_seg.brightness].append(new_seg)
 
         # randomly select n segments for each brightness to be fillable (image center is prefered)
@@ -181,31 +204,44 @@ class MosaicManagementService:
         )
 
     @staticmethod
-    def _get_image_center(metadata: MosaicMetadata) -> Tuple[int, int, int, int]:
-        m_row = int(metadata.n_rows / 4)
-        m_col = int(metadata.n_cols / 4)
-        return m_row, m_col, m_row * 3, m_col * 3
-
-    async def get_mosaic_metadata(self, mosaic_id: str) -> dict:
-        metadata = self.persistence.read_mosaic_metadata(mosaic_id)
+    def get_mosaic_metadata(mosaic_id: str) -> dict:
+        metadata = db.read_mosaic_metadata(mosaic_id)
         json_metadata = json.loads(metadata.json())
-        stats = self.persistence.get_segment_stats(mosaic_id)
+        stats = db.get_segment_stats(mosaic_id)
         json_metadata["dark_segments_left"] = stats[0]
         json_metadata["medium_segments_left"] = stats[1]
         json_metadata["bright_segments_left"] = stats[2]
         return json_metadata
 
-    async def get_mosaic_original_jpeg(self, mosaic_id: str) -> bytes:
-        return self.persistence.read_raw_image(mosaic_id, RAW_IMAGE_ORIGINAL_JPEG).image_bytes
+    @staticmethod
+    def get_mosaic_original_jpeg(mosaic_id: str) -> bytes:
+        original_jpeg = db.read_raw_image(mosaic_id, RAW_IMAGE_ORIGINAL_JPEG).image_bytes
+        return original_jpeg
 
-    async def get_mosaic_current_jpeg(self, mosaic_id: str) -> bytes:
-        return self.persistence.read_raw_image(mosaic_id, RAW_IMAGE_CURRENT_JPEG).image_bytes
+    @staticmethod
+    def get_mosaic_current_jpeg(mosaic_id: str) -> bytes:
+        current_jpeg = db.read_raw_image(mosaic_id, RAW_IMAGE_CURRENT_JPEG).image_bytes
+        return current_jpeg
 
-    async def get_mosaic_filling_gif(self, mosaic_id: str) -> bytes:
-        return self.persistence.read_raw_image(mosaic_id, RAW_IMAGE_FILLING_GIF).image_bytes
+    @staticmethod
+    def get_mosaic_filling_gif(mosaic_id: str) -> bytes:
+        gif = db.read_raw_image(mosaic_id, RAW_IMAGE_FILLING_GIF).image_bytes
+        return gif
 
-    async def get_mosaic_list(self, filter_by: str) -> List[dict]:
-        mosaic_list = self.persistence.read_mosaic_list()
+    @staticmethod
+    def get_mosaic_list(filter_by: str) -> List[dict]:
+        """
+        Get a list of mosaics
+        Args:
+            filter_by: The filter criterion ("ACTIVE": active mosaics,
+                                             "FILLED": fully filled mosaics,
+                                             "ORIGINAL": mosaics created by the admin (not automatically by the API),
+                                             "ALL": all mosaics)
+
+        Returns: A list of dictionaries each containing id and index for a mosaic
+
+        """
+        mosaic_list = db.read_mosaic_list()
         results = []
         for mosaic_id, index, active, filled, original in mosaic_list:
             if (
@@ -217,32 +253,42 @@ class MosaicManagementService:
                 results.append({"id": mosaic_id, "index": index})
         return results
 
-    async def delete_mosaic(self, mosaic_id: str):
-        self.persistence.delete_mosaic_metadata(mosaic_id)
-        self.persistence.commit()
-        self.persistence.disconnect()
+    @staticmethod
+    def delete_mosaic(mosaic_id: str):
+        db.delete_mosaic_metadata(mosaic_id)
+        db.commit()
 
-    async def reset_mosaic(self, mosaic_id: str) -> str:
+    @staticmethod
+    def reset_mosaic(mosaic_id: str) -> str:
+        """
+        Reset a mosaic to its state right after creation.
+        All associated RawImage, ImagePixels and Segment data structures will be cleared.
+        Args:
+            mosaic_id: The mosaic id
+
+        Returns: The mosaic id
+
+        """
         # load current mosaic data
-        metadata = self.persistence.read_mosaic_metadata(mosaic_id)
-        orig_pixels = self.persistence.read_image_pixels(mosaic_id, IMAGE_PIXELS_CATEGORY_ORIGINAL)
-        current_pixels = self.persistence.read_image_pixels(mosaic_id, IMAGE_PIXELS_CATEGORY_CURRENT)
-        segments = self.persistence.get_segments(mosaic_id=mosaic_id, filled=1)
+        metadata = db.read_mosaic_metadata(mosaic_id)
+        orig_pixels = db.read_image_pixels(mosaic_id, IMAGE_PIXELS_CATEGORY_ORIGINAL)
+        current_pixels = db.read_image_pixels(mosaic_id, IMAGE_PIXELS_CATEGORY_CURRENT)
+        segments = db.get_segments(mosaic_id=mosaic_id, filled=1)
 
         # reset metadata
         metadata.filled = False
-        self.persistence.update_mosaic_metadata(metadata)
+        db.update_mosaic_metadata(metadata)
 
         # reset current image
         orig_image_pil = np2pil(orig_pixels.pixel_array)
         bg_pil_image = adapt_brightness(orig_image_pil, metadata.mosaic_config.mosaic_background_brightness)
         # type: ignore
         current_pixels.pixel_array = pil2np(bg_pil_image)
-        self.persistence.upsert_image_pixels(current_pixels)
+        db.upsert_image_pixels(current_pixels)
         current_jpeg = RawImage(
             mosaic_id=metadata.id, category=RAW_IMAGE_CURRENT_JPEG, image_bytes=pil2bytes(bg_pil_image)
         )
-        self.persistence.upsert_raw_image(current_jpeg)
+        db.upsert_raw_image(current_jpeg)
 
         # reset segments
         for s in segments:
@@ -251,13 +297,15 @@ class MosaicManagementService:
                 s.fillable = True
             else:
                 s.fillable = False
-        self.persistence.upsert_segments(segments)
-        self.persistence.commit()
+        db.upsert_segments(segments)
+        db.commit()
 
         # update filling gif
-        gif_image = mosaic_2_gif(persistence=self.persistence, mosaic_id=metadata.id)
-        self.persistence.upsert_raw_image(gif_image)
-        self.persistence.commit()
-        self.persistence.disconnect()
+        gif_image = mosaic_2_gif(mosaic_id=metadata.id)
+        db.upsert_raw_image(gif_image)
+        db.commit()
 
         return mosaic_id
+
+
+mgmt_service = MosaicManagementService()

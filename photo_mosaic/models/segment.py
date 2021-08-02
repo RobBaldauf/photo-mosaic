@@ -2,6 +2,8 @@ from pydantic import BaseModel
 
 
 class Segment(BaseModel):
+    """Model for storing detailed segment information, needed for segment sampling and filling"""
+
     id: str
     mosaic_id: str
     row_idx: int

@@ -15,8 +15,8 @@ Two docker files are available for the API:
   - No content filtering
 - Production ([Dockerfile.prod](Dockerfile.prod))
   - API Documentation disabled
-  - Key based authentication for admin endpoints
-  - NSFW content filtering
+  - Simple key based authentication for admin endpoints
+  - NSFW content filtering (based on https://github.com/GantMan/nsfw_model)
 
 ### Development Docker
 
@@ -27,7 +27,7 @@ docker build -t photo-mosaic .
 ```
 
 2. Run docker container. Replace <your_db_folder> with the directory that should contain
-   the SQLite DB file (e.g. ~/mosaic_db).
+   the SQLite DB file (e.g. ~ /mosaic_db).
 
 ```shell
 docker run -t -i -p 8111:8111 -v <your_db_folder>:/db photo-mosaic:latest
@@ -45,13 +45,13 @@ docker build -t photo-mosaic --build-arg JWT_SECRET=<your_secret> -f Dockerfile.
 The output of the docker build should contain a line similar to this one:
 
 ```shell
-JWT_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhcHAiOiJwaG90by1tb3NhaWMiLCJpZCI6InBob3RvLW1vc2FpYy1hZG1pbiIsImV4cCI6MTY4OTI3OTU2NH0.A80yxWZ0rjvIi98qYZ0x1pyf1l2jH4YQExW75t2rrlU
+API_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhcHAiOiJwaG90by1tb3NhaWMiLCJpZCI6InBob3RvLW1vc2FpYy1hZG1pbiIsImV4cCI6MTY4OTI3OTU2NH0.A80yxWZ0rjvIi98qYZ0x1pyf1l2jH4YQExW75t2rrlU
 ```
 
 This is the API KEY you need to access the admin endpoints of the API.
 
-2. Run docker container Replace <your_db_folder> with the directory that should contain
-   the SQLite DB file (e.g. ~/mosaic_db).
+2. Run docker container. Replace <your_db_folder> with the directory that should contain
+   the SQLite DB file (e.g. ~ /mosaic_db).
 
 ```shell
 docker run -t -i -p 8111:8111 -v <your_db_folder>:/db photo-mosaic:latest

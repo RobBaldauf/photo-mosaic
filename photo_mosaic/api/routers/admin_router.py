@@ -4,19 +4,14 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.openapi.models import APIKey
 from fastapi.responses import JSONResponse
 
-from app.models.app_config import get_config
-from app.models.mosaic_config import MosaicConfig
-from app.services.auth import AuthService
-from app.services.mosaic_filling import MosaicFillingService
-from app.services.mosaic_management import MosaicManagementService
-from app.services.sqlite_persistence import SQLiteAbstractPersistenceService
-from app.utils.data import validate_request_uuid
+from photo_mosaic.models.mosaic_config import MosaicConfig
+from photo_mosaic.services.auth import AuthService
+from photo_mosaic.services.mosaic_filling import filling_service
+from photo_mosaic.services.mosaic_management import mgmt_service
+from photo_mosaic.utils.request_validation import validate_request_uuid
 
 router = APIRouter()
 auth_service = AuthService()
-persistence_service = SQLiteAbstractPersistenceService(get_config().sql_lite_path)
-mgmt_service = MosaicManagementService(persistence_service)
-filling_service = MosaicFillingService(persistence_service)
 
 
 @router.post(
@@ -25,14 +20,53 @@ filling_service = MosaicFillingService(persistence_service)
     summary="Create a new mosaic with empty segments from an uploaded image and configuration.",
 )
 async def post_mosaic(
-    file: UploadFile = File(...),
-    num_segments: int = Form(300),
-    mosaic_bg_brightness: float = Form(0.25),
-    mosaic_blend_value: float = Form(0.25),
-    segment_blend_value: float = Form(0.4),
-    segment_blur_low: float = Form(4),
-    segment_blur_medium: float = Form(3),
-    segment_blur_high: float = Form(2),
+    file: UploadFile = File(..., description="The image that shall be transformed into a mosaic."),
+    num_segments: int = Form(
+        300,
+        ge=10,
+        le=10000,
+        description="The desired number of segments in which the mosaic shall be structured. "
+        "The actual number might differ since the API will try to find an optimal "
+        "row/column ratio that minimizes the area of unused pixels.",
+    ),
+    mosaic_bg_brightness: float = Form(
+        0.25, ge=0.01, le=1, description="Factor for the brightness reduction of the mosaic background."
+    ),
+    mosaic_blend_value: float = Form(
+        0.25,
+        ge=0.01,
+        le=1,
+        description="Blend factor for merging uploaded portraits with mosaic segments "
+        "when adding them to the mosaic. (0.5=equal split)",
+    ),
+    segment_blend_value: float = Form(
+        0.4,
+        ge=0.01,
+        le=1,
+        description="Blend factor for merging uploaded portraits with mosaic segments"
+        " when creating a style filter for the user (0.5=equal split)",
+    ),
+    segment_blur_low: float = Form(
+        4,
+        ge=0,
+        le=5,
+        description="The radius of the blur applied to low brightness segments when"
+        " creating a style filter for the user.",
+    ),
+    segment_blur_medium: float = Form(
+        3,
+        ge=0,
+        le=5,
+        description="The radius of the blur applied to medium brightness segments when"
+        " creating a style filter for the user.",
+    ),
+    segment_blur_high: float = Form(
+        2,
+        ge=0,
+        le=5,
+        description="The radius of the blur applied to high brightness segments when"
+        " creating a style filter for the user.",
+    ),
     key: APIKey = Depends(auth_service.admin_auth),
 ) -> JSONResponse:
     # pylint: disable=unused-argument
@@ -48,7 +82,7 @@ async def post_mosaic(
             segment_blur_medium=segment_blur_medium,
             segment_blur_high=segment_blur_high,
         )
-        mosaic_id = await mgmt_service.create_mosaic(image_bytes, config)
+        mosaic_id = mgmt_service.create_mosaic(image_bytes, config)
         return JSONResponse(content={"msg": "Mosaic created!"}, headers={"mosaic_id": mosaic_id})
     except HTTPException:
         raise
@@ -67,7 +101,7 @@ async def reset_mosaic(mosaic_id: str, key: APIKey = Depends(auth_service.admin_
     # pylint: disable=unused-argument
     try:
         m_id = validate_request_uuid(mosaic_id, "mosaic")
-        await mgmt_service.reset_mosaic(m_id)
+        mgmt_service.reset_mosaic(m_id)
         return JSONResponse(content={"msg": "Mosaic reseted!"}, headers={"mosaic_id": m_id})
     except HTTPException:
         raise
@@ -86,7 +120,7 @@ async def delete_mosaic(mosaic_id: str, key: APIKey = Depends(auth_service.admin
     # pylint: disable=unused-argument
     try:
         m_id = validate_request_uuid(mosaic_id, "mosaic")
-        await mgmt_service.delete_mosaic(m_id)
+        mgmt_service.delete_mosaic(m_id)
         return JSONResponse(content={"msg": "Mosaic deleted!"}, headers={"mosaic_id": m_id})
     except HTTPException:
         raise
@@ -103,15 +137,17 @@ async def delete_mosaic(mosaic_id: str, key: APIKey = Depends(auth_service.admin
 )
 async def post_mosaic_segment_random(
     mosaic_id: str,
-    quick_fill: bool = Form(True),
-    file: UploadFile = File(...),
-    key: APIKey = Depends(auth_service.public_auth),
+    quick_fill: bool = Form(
+        True, description="If enabled each uploaded image will be filled into 5 different segemnts"
+    ),
+    file: UploadFile = File(..., description="A portrait image that shall be added to the mosaic."),
+    api_key: APIKey = Depends(auth_service.admin_auth),
 ) -> JSONResponse:
     # pylint: disable=unused-argument
     try:
         input_image_bytes = await file.read()
         m_id = validate_request_uuid(mosaic_id, "mosaic")
-        await filling_service.fill_random_segment(m_id, input_image_bytes, quick_fill)
+        filling_service.fill_random_segments(m_id, input_image_bytes, quick_fill)
         return JSONResponse(content={"msg": "Segment filled!"}, headers={"mosaic_id": m_id})
     except HTTPException:
         raise
