@@ -1,7 +1,7 @@
 from typing import List, Optional, Tuple
 
-from fastapi import HTTPException
 from PIL.Image import Image
+from fastapi import HTTPException
 
 from photo_mosaic.models.app_config import get_config
 from photo_mosaic.models.image_pixels import (
@@ -12,7 +12,7 @@ from photo_mosaic.models.mosaic_metadata import MosaicMetadata
 from photo_mosaic.models.raw_image import (
     RAW_IMAGE_CURRENT_JPEG,
     RAW_IMAGE_ORIGINAL_JPEG,
-    RawImage,
+    RawImage, RAW_IMAGE_CURRENT_SMALL_JPEG,
 )
 from photo_mosaic.models.segment import Segment
 from photo_mosaic.services.mosaic_management import mgmt_service
@@ -65,7 +65,7 @@ class MosaicFillingService:
         seg = segments[0]
         orig_pixels = db.read_image_pixels(mosaic_id, IMAGE_PIXELS_CATEGORY_ORIGINAL)
         metadata = db.read_mosaic_metadata(mosaic_id)
-        segment_data = orig_pixels.pixel_array[seg.y_min : seg.y_max, seg.x_min : seg.x_max]
+        segment_data = orig_pixels.pixel_array[seg.y_min: seg.y_max, seg.x_min: seg.x_max]
         resized_segment = np2pil(segment_data).resize((width, height))
         if seg.brightness == HIGH_BRIGHTNESS:
             blur_radius = metadata.mosaic_config.segment_blur_high
@@ -132,7 +132,7 @@ class MosaicFillingService:
 
         for seg in segments:
             # apply filter
-            segment_data = orig_pixels.pixel_array[seg.y_min : seg.y_max, seg.x_min : seg.x_max]
+            segment_data = orig_pixels.pixel_array[seg.y_min: seg.y_max, seg.x_min: seg.x_max]
             resized_query_image = q_image.resize((metadata.segment_width, metadata.segment_height))
             filtered_image = apply_filter(
                 portrait_image=resized_query_image,
@@ -141,7 +141,7 @@ class MosaicFillingService:
             )
 
             # update current image pixels
-            current_pixels.pixel_array[seg.y_min : seg.y_max, seg.x_min : seg.x_max] = filtered_image
+            current_pixels.pixel_array[seg.y_min: seg.y_max, seg.x_min: seg.x_max] = filtered_image
 
             # check if mosaic has already been filled
             # in case the mosaic has already been filled, but a user is still using the photo_mosaic with this mosaic
@@ -164,12 +164,21 @@ class MosaicFillingService:
         db.upsert_image_pixels(current_pixels)
 
         # update current image jpeg
+        current_pil_img = np2pil(current_pixels.pixel_array)
         current_jpeg = RawImage(
             mosaic_id=metadata.id,
             category=RAW_IMAGE_CURRENT_JPEG,
-            image_bytes=pil2bytes(np2pil(current_pixels.pixel_array)),
+            image_bytes=pil2bytes(current_pil_img),
         )
         db.upsert_raw_image(current_jpeg)
+
+        # update current image jpeg thumbnail
+        current_pil_img.thumbnail(
+            (get_config().current_image_thumbnail_size, get_config().current_image_thumbnail_size))
+        current_jpeg_small = RawImage(
+            mosaic_id=metadata.id, category=RAW_IMAGE_CURRENT_SMALL_JPEG, image_bytes=pil2bytes(current_pil_img)
+        )
+        db.upsert_raw_image(current_jpeg_small)
 
         # update filling gif
         gif_image = mosaic_2_gif(mosaic_id=mosaic_id)
@@ -200,8 +209,8 @@ class MosaicFillingService:
         current_pixels = db.read_image_pixels(metadata.id, IMAGE_PIXELS_CATEGORY_CURRENT)
         segments = db.get_segments(mosaic_id=metadata.id, filled=False, fillable=True)
         for seg in segments:
-            segment_data = orig_pixels.pixel_array[seg.y_min : seg.y_max, seg.x_min : seg.x_max]
-            current_pixels.pixel_array[seg.y_min : seg.y_max, seg.x_min : seg.x_max] = segment_data
+            segment_data = orig_pixels.pixel_array[seg.y_min: seg.y_max, seg.x_min: seg.x_max]
+            current_pixels.pixel_array[seg.y_min: seg.y_max, seg.x_min: seg.x_max] = segment_data
         db.upsert_image_pixels(current_pixels)
         current_jpeg = RawImage(
             mosaic_id=metadata.id,

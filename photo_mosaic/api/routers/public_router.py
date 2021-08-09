@@ -81,6 +81,22 @@ async def get_mosaic_current(mosaic_id: str) -> Response:
         raise HTTPException(status_code=500, detail="An unknown server error occurred") from exc
 
 
+@router.get(
+    "/mosaic/{mosaic_id}/thumbnail", name="get_mosaic_current_thumbnail",
+    summary="Get the current state of a mosaic as a JPEG thumbnail image (e.g. for a gallery)."
+)
+async def get_mosaic_current_thumbnail(mosaic_id: str) -> Response:
+    try:
+        m_id = validate_request_uuid(mosaic_id, "mosaic")
+        image_bytes = mgmt_service.get_mosaic_current_jpeg_thumbnail(m_id)
+        return Response(content=image_bytes, media_type="image/jpeg", headers={"mosaic_id": m_id})
+    except HTTPException:
+        raise
+    except BaseException as exc:
+        logging.error("", exc_info=True)
+        raise HTTPException(status_code=500, detail="An unknown server error occurred") from exc
+
+
 @router.get("/mosaic/{mosaic_id}/metadata", name="get_mosaic_metadata", summary="Get the metadata of a mosaic as JSON.")
 async def get_mosaic_metadata(mosaic_id: str) -> JSONResponse:
     try:
@@ -132,16 +148,16 @@ async def get_mosaic_gif(mosaic_id: str) -> Response:
     "/mosaic/{mosaic_id}/segment/sample",
     name="get_segment_samples",
     summary="For an uploaded image, select a matching mosaic segment (based on brightness and position), apply the "
-    "segment as a 'filter' to the uploaded image and return the resulting image as well as the id of the used "
-    "segment. This will not change the mosaic.",
+            "segment as a 'filter' to the uploaded image and return the resulting image as well as the id of the used "
+            "segment. This will not change the mosaic.",
 )
 async def post_segment_sample(
-    mosaic_id: str,
-    file: UploadFile = File(
-        ...,
-        description="A portrait image that shall be uploaded, merged with a segment and "
-        "returned as a 'stylised' version.",
-    ),
+        mosaic_id: str,
+        file: UploadFile = File(
+            ...,
+            description="A portrait image that shall be uploaded, merged with a segment and "
+                        "returned as a 'stylised' version.",
+        ),
 ) -> Response:
     input_image_bytes = await file.read()
     try:
@@ -164,14 +180,14 @@ async def post_segment_sample(
     "/mosaic/{mosaic_id}/segment/{segment_id}",
     name="post_mosaic_segment",
     summary="For an uploaded image and segment_id, apply the segment as a 'filter' to the uploaded image and add the "
-    "result to the mosaic. This will update the mosaic and all related data structures.",
+            "result to the mosaic. This will update the mosaic and all related data structures.",
 )
 async def post_mosaic_segment(
-    mosaic_id: str,
-    segment_id: str,
-    file: UploadFile = File(
-        ..., description="A portrait image that shall be merged with a segment and added " "to the mosaic."
-    ),
+        mosaic_id: str,
+        segment_id: str,
+        file: UploadFile = File(
+            ..., description="A portrait image that shall be merged with a segment and added " "to the mosaic."
+        ),
 ) -> JSONResponse:
     try:
         input_image_bytes = await file.read()

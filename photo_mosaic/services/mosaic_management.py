@@ -17,7 +17,7 @@ from photo_mosaic.models.raw_image import (
     RAW_IMAGE_CURRENT_JPEG,
     RAW_IMAGE_FILLING_GIF,
     RAW_IMAGE_ORIGINAL_JPEG,
-    RawImage,
+    RawImage, RAW_IMAGE_CURRENT_SMALL_JPEG,
 )
 from photo_mosaic.models.segment import Segment
 from photo_mosaic.services.persistence import db
@@ -81,6 +81,13 @@ class MosaicManagementService:
             mosaic_id=metadata.id, category=IMAGE_PIXELS_CATEGORY_CURRENT, pixel_array=pil2np(bg_pil_image)
         )
         db.upsert_image_pixels(current_pixels)
+
+        # create current jpeg thumbnail
+        bg_pil_image.thumbnail((get_config().current_image_thumbnail_size, get_config().current_image_thumbnail_size))
+        current_jpeg_small = RawImage(
+            mosaic_id=metadata.id, category=RAW_IMAGE_CURRENT_SMALL_JPEG, image_bytes=pil2bytes(bg_pil_image)
+        )
+        db.upsert_raw_image(current_jpeg_small)
 
         # create segments
         segments = self._create_segments(metadata, original_pixels)
@@ -169,7 +176,7 @@ class MosaicManagementService:
                     filled=False,
                     is_start_segment=False,
                 )
-                np_segment = pixels.pixel_array[new_seg.y_min : new_seg.y_max, new_seg.x_min : new_seg.x_max]
+                np_segment = pixels.pixel_array[new_seg.y_min: new_seg.y_max, new_seg.x_min: new_seg.x_max]
                 new_seg.brightness = get_brightness_category(np2pil(np_segment))
 
                 if row_min <= r <= row_max and col_min <= c <= col_max:
@@ -195,12 +202,12 @@ class MosaicManagementService:
                     segments[edge][brightness][idx].is_start_segment = True
 
         return (
-            segments[center][LOW_BRIGHTNESS]
-            + segments[edge][LOW_BRIGHTNESS]
-            + segments[center][MEDIUM_BRIGHTNESS]
-            + segments[edge][MEDIUM_BRIGHTNESS]
-            + segments[center][HIGH_BRIGHTNESS]
-            + segments[edge][HIGH_BRIGHTNESS]
+                segments[center][LOW_BRIGHTNESS]
+                + segments[edge][LOW_BRIGHTNESS]
+                + segments[center][MEDIUM_BRIGHTNESS]
+                + segments[edge][MEDIUM_BRIGHTNESS]
+                + segments[center][HIGH_BRIGHTNESS]
+                + segments[edge][HIGH_BRIGHTNESS]
         )
 
     @staticmethod
@@ -215,18 +222,31 @@ class MosaicManagementService:
 
     @staticmethod
     def get_mosaic_original_jpeg(mosaic_id: str) -> bytes:
-        original_jpeg = db.read_raw_image(mosaic_id, RAW_IMAGE_ORIGINAL_JPEG).image_bytes
-        return original_jpeg
+        return db.read_raw_image(mosaic_id, RAW_IMAGE_ORIGINAL_JPEG).image_bytes
 
     @staticmethod
     def get_mosaic_current_jpeg(mosaic_id: str) -> bytes:
-        current_jpeg = db.read_raw_image(mosaic_id, RAW_IMAGE_CURRENT_JPEG).image_bytes
-        return current_jpeg
+        return db.read_raw_image(mosaic_id, RAW_IMAGE_CURRENT_JPEG).image_bytes
+
+    # @staticmethod
+    # def get_mosaic_current_jpeg_thumbnail(mosaic_id: str) -> bytes:
+    #     image = np2pil(db.read_image_pixels(mosaic_id, IMAGE_PIXELS_CATEGORY_CURRENT).pixel_array)
+    #     image.thumbnail((get_config().current_image_thumbnail_size, get_config().current_image_thumbnail_size))
+    #     return pil2bytes(image)
+
+    # @staticmethod
+    # def get_mosaic_current_jpeg_thumbnail(mosaic_id: str) -> bytes:
+    #     image = bytes2pil(db.read_raw_image(mosaic_id, RAW_IMAGE_CURRENT_JPEG).image_bytes)
+    #     image.thumbnail((get_config().current_image_thumbnail_size, get_config().current_image_thumbnail_size))
+    #     return pil2bytes(image)
+
+    @staticmethod
+    def get_mosaic_current_jpeg_thumbnail(mosaic_id: str) -> bytes:
+        return db.read_raw_image(mosaic_id, RAW_IMAGE_CURRENT_SMALL_JPEG).image_bytes
 
     @staticmethod
     def get_mosaic_filling_gif(mosaic_id: str) -> bytes:
-        gif = db.read_raw_image(mosaic_id, RAW_IMAGE_FILLING_GIF).image_bytes
-        return gif
+        return db.read_raw_image(mosaic_id, RAW_IMAGE_FILLING_GIF).image_bytes
 
     @staticmethod
     def get_mosaic_list(filter_by: str) -> List[dict]:
@@ -245,10 +265,10 @@ class MosaicManagementService:
         results = []
         for mosaic_id, index, active, filled, original in mosaic_list:
             if (
-                (filter_by == "ACTIVE" and active)
-                or (filter_by == "FILLED" and filled)
-                or (filter_by == "ORIGINAL" and original)
-                or (filter_by == "ALL")
+                    (filter_by == "ACTIVE" and active)
+                    or (filter_by == "FILLED" and filled)
+                    or (filter_by == "ORIGINAL" and original)
+                    or (filter_by == "ALL")
             ):
                 results.append({"id": mosaic_id, "index": index})
         return results
@@ -289,6 +309,13 @@ class MosaicManagementService:
             mosaic_id=metadata.id, category=RAW_IMAGE_CURRENT_JPEG, image_bytes=pil2bytes(bg_pil_image)
         )
         db.upsert_raw_image(current_jpeg)
+
+        # create current thumbnail
+        bg_pil_image.thumbnail((get_config().current_image_thumbnail_size, get_config().current_image_thumbnail_size))
+        current_jpeg_small = RawImage(
+            mosaic_id=metadata.id, category=RAW_IMAGE_CURRENT_SMALL_JPEG, image_bytes=pil2bytes(bg_pil_image)
+        )
+        db.upsert_raw_image(current_jpeg_small)
 
         # reset segments
         for s in segments:
