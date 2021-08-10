@@ -66,6 +66,7 @@ disable=
     too-few-public-methods,
     W9011, #missing-return-doc
     W9012, #missing-return-type-doc
+    import-outside-toplevel,
     # handled by black
     format
 

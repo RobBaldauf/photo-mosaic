@@ -90,7 +90,7 @@ class SQLitePersistenceService:
                 metadata.space_top,
                 metadata.space_left,
                 metadata.mosaic_config.num_segments,
-                metadata.mosaic_config.mosaic_background_brightness,
+                metadata.mosaic_config.mosaic_bg_brightness,
                 metadata.mosaic_config.mosaic_blend_value,
                 metadata.mosaic_config.segment_blend_value,
                 metadata.mosaic_config.segment_blur_low,
@@ -120,7 +120,7 @@ class SQLitePersistenceService:
                 metadata.space_top,
                 metadata.space_left,
                 metadata.mosaic_config.num_segments,
-                metadata.mosaic_config.mosaic_background_brightness,
+                metadata.mosaic_config.mosaic_bg_brightness,
                 metadata.mosaic_config.mosaic_blend_value,
                 metadata.mosaic_config.segment_blend_value,
                 metadata.mosaic_config.segment_blur_low,
@@ -149,7 +149,7 @@ class SQLitePersistenceService:
         row = rows[0]
         config = MosaicConfig(
             num_segments=row[0],
-            mosaic_background_brightness=row[1],
+            mosaic_bg_brightness=row[1],
             mosaic_blend_value=row[2],
             segment_blend_value=row[3],
             segment_blur_low=row[4],
@@ -175,7 +175,7 @@ class SQLitePersistenceService:
         mosaic_list = self.read_mosaic_list()
         new_active = None
         exists = False
-        for m_id, _, _, _, active in mosaic_list:
+        for m_id, _, active, _, _ in mosaic_list:
             if exists:
                 new_active = m_id
                 break

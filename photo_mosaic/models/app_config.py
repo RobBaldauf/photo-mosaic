@@ -26,6 +26,7 @@ class AppConfig(BaseSettings):
     original_image_max_size: int
     gif_image_max_size: int
     sample_image_max_size: int
+    current_image_thumbnail_size: int
     unused_pixel_area_weight: int
 
     # segment config
