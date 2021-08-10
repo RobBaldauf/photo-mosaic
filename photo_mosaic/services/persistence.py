@@ -273,7 +273,8 @@ class SQLitePersistenceService:
         cur = con.cursor()
         cur.execute(
             f"""INSERT OR REPLACE INTO {SEGMENT_TABLE} (id, mosaic_id, row_idx, col_idx, x_min, x_max, y_min, y_max,
-                        brightness, fillable, filled, is_start_segment) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        brightness, fillable, filled, is_start_segment, random_sort_key) values
+                        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 seg.id,
                 seg.mosaic_id,
@@ -287,6 +288,7 @@ class SQLitePersistenceService:
                 int(seg.fillable),
                 int(seg.filled),
                 int(seg.is_start_segment),
+                int(seg.random_sort_key),
             ),
         )
 
@@ -296,7 +298,8 @@ class SQLitePersistenceService:
         for seg in segments:
             cur.execute(
                 f"""INSERT OR REPLACE INTO {SEGMENT_TABLE} (id, mosaic_id, row_idx, col_idx, x_min, x_max, y_min, y_max,
-                brightness, fillable, filled, is_start_segment) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                brightness, fillable, filled, is_start_segment, random_sort_key) values
+                 (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     seg.id,
                     seg.mosaic_id,
@@ -310,6 +313,7 @@ class SQLitePersistenceService:
                     int(seg.fillable),
                     int(seg.filled),
                     int(seg.is_start_segment),
+                    int(seg.random_sort_key),
                 ),
             )
 
@@ -343,6 +347,7 @@ class SQLitePersistenceService:
             "fillable",
             "filled",
             "is_start_segment",
+            "random_sort_key",
         ]
 
         where_keys = []
@@ -357,7 +362,7 @@ class SQLitePersistenceService:
                     where_values.append(v)
         query = f"SELECT {', '.join(keys)} FROM {SEGMENT_TABLE} WHERE {' AND '.join(where_keys)}"
         if random_order:
-            query += " ORDER BY RANDOM()"
+            query += " ORDER BY random_sort_key ASC"
         if limit > 0:
             query += f" LIMIT {limit}"
             query += f" OFFSET {offset};"
@@ -382,6 +387,7 @@ class SQLitePersistenceService:
                     fillable=row[9],
                     filled=row[10],
                     is_start_segment=row[11],
+                    random_sort_key=row[12],
                 )
             )
         return segments
@@ -449,6 +455,7 @@ class SQLitePersistenceService:
                             fillable INTEGER,
                             filled INTEGER,
                             is_start_segment INTEGER,
+                            random_sort_key INTEGER,
                             CONSTRAINT fk_mosaic_id
                               FOREIGN KEY (mosaic_id)
                               REFERENCES {MOSAIC_METADATA_TABLE}(id)

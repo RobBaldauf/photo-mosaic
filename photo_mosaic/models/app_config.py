@@ -28,6 +28,7 @@ class AppConfig(BaseSettings):
     sample_image_max_size: int
     current_image_thumbnail_size: int
     unused_pixel_area_weight: int
+    segment_sample_size: int
 
     # segment config
     num_segments_start: int
