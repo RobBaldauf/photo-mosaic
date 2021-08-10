@@ -67,20 +67,20 @@ Download and install python 3.7 or higher (https://www.python.org/downloads/) as
 pip
 
 ```shell
-$ sudo apt install python3.7
-$ sudo apt install python3-pip
+sudo apt install python3.7
+sudo apt install python3-pip
 ```
 
 Install python dependencies:
 
 ```shell
-$ pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 
 Give permissions to executable
 
 ```shell
-$ chmod 755 run_app.sh
+chmod 755 run_app.sh
 ```
 
 ### Update config
@@ -114,10 +114,18 @@ SQL_LITE_PATH=/db # path in which the sql lite db file shall be stored
 
 ### Run service
 
-Start pixel-mosaic server:
+Start photo-mosaic server:
 
 ```shell
-$ ./run_prod.sh
+./run_prod.sh
+```
+
+### Run tests
+
+Run fastapi endpoint tests:
+
+```shell
+python3 -m pytest
 ```
 
 ## Documentation
