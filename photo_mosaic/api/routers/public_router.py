@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, Response
 
 from photo_mosaic.services.mosaic_filling import filling_service
@@ -82,8 +82,9 @@ async def get_mosaic_current(mosaic_id: str) -> Response:
 
 
 @router.get(
-    "/mosaic/{mosaic_id}/thumbnail", name="get_mosaic_current_thumbnail",
-    summary="Get the current state of a mosaic as a JPEG thumbnail image (e.g. for a gallery)."
+    "/mosaic/{mosaic_id}/thumbnail",
+    name="get_mosaic_current_thumbnail",
+    summary="Get the current state of a mosaic as a JPEG thumbnail image (e.g. for a gallery).",
 )
 async def get_mosaic_current_thumbnail(mosaic_id: str) -> Response:
     try:
@@ -148,21 +149,27 @@ async def get_mosaic_gif(mosaic_id: str) -> Response:
     "/mosaic/{mosaic_id}/segment/sample",
     name="get_segment_samples",
     summary="For an uploaded image, select a matching mosaic segment (based on brightness and position), apply the "
-            "segment as a 'filter' to the uploaded image and return the resulting image as well as the id of the used "
-            "segment. This will not change the mosaic.",
+    "segment as a 'filter' to the uploaded image and return the resulting image as well as the id of the used "
+    "segment. This will not change the mosaic.",
 )
 async def post_segment_sample(
-        mosaic_id: str,
-        file: UploadFile = File(
-            ...,
-            description="A portrait image that shall be uploaded, merged with a segment and "
-                        "returned as a 'stylised' version.",
-        ),
+    mosaic_id: str,
+    file: UploadFile = File(
+        ...,
+        description="A portrait image that shall be uploaded, merged with a segment and "
+        "returned as a 'stylised' version.",
+    ),
+    sample_index: int = Form(
+        0,
+        ge=0,
+        le=65536,
+        description="The index of the random sample. Different values return different filter samples",
+    ),
 ) -> Response:
     input_image_bytes = await file.read()
     try:
         m_id = validate_request_uuid(mosaic_id, "mosaic")
-        output_image_bytes, segment_id = filling_service.get_segment_sample(m_id, input_image_bytes)
+        output_image_bytes, segment_id = filling_service.get_segment_sample(m_id, input_image_bytes, sample_index)
         return Response(
             content=output_image_bytes,
             media_type="image/jpeg",
@@ -180,14 +187,14 @@ async def post_segment_sample(
     "/mosaic/{mosaic_id}/segment/{segment_id}",
     name="post_mosaic_segment",
     summary="For an uploaded image and segment_id, apply the segment as a 'filter' to the uploaded image and add the "
-            "result to the mosaic. This will update the mosaic and all related data structures.",
+    "result to the mosaic. This will update the mosaic and all related data structures.",
 )
 async def post_mosaic_segment(
-        mosaic_id: str,
-        segment_id: str,
-        file: UploadFile = File(
-            ..., description="A portrait image that shall be merged with a segment and added " "to the mosaic."
-        ),
+    mosaic_id: str,
+    segment_id: str,
+    file: UploadFile = File(
+        ..., description="A portrait image that shall be merged with a segment and added " "to the mosaic."
+    ),
 ) -> JSONResponse:
     try:
         input_image_bytes = await file.read()

@@ -41,13 +41,14 @@ class MosaicFillingService:
         if get_config().enable_nsfw_content_filter:
             self.nsfw_service = NSFWService(get_config().nsfw_model_path)
 
-    def get_segment_sample(self, mosaic_id: str, query_image_bytes: bytes) -> Tuple[bytes, str]:
+    def get_segment_sample(self, mosaic_id: str, query_image_bytes: bytes, sample_index: int) -> Tuple[bytes, str]:
         """
         For the given query image, find a segment in the given mosaic that has not been filled and matches the query
         image in brightness. Merge this segment with the query image to create stylized version of the query image.
         Args:
             mosaic_id: The mosaic id
             query_image_bytes: The uploaded portrait image to apply a segment filter to
+            sample_index: The index of the random sample
 
         Returns: (The stylized query image, the id of the used segment)
 
@@ -60,10 +61,14 @@ class MosaicFillingService:
 
         # find segments by brightness
         brightness = get_brightness_category(query_image)
-        segments = self._get_segment_sample(brightness, mosaic_id, 1)
+        segments = self._get_segment_sample(brightness, mosaic_id, get_config().segment_sample_size)
 
+        if sample_index >= len(segments):
+            seg_index = sample_index % len(segments)
+        else:
+            seg_index = sample_index
         # apply filter
-        seg = segments[0]
+        seg = segments[seg_index]
         orig_pixels = db.read_image_pixels(mosaic_id, IMAGE_PIXELS_CATEGORY_ORIGINAL)
         metadata = db.read_mosaic_metadata(mosaic_id)
         segment_data = orig_pixels.pixel_array[seg.y_min : seg.y_max, seg.x_min : seg.x_max]

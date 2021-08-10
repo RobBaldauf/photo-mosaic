@@ -160,6 +160,7 @@ class MosaicManagementService:
         edge = "edge"
         segments: dict = {center: {0: [], 1: [], 2: []}, edge: {0: [], 1: [], 2: []}}
 
+        random_sort_keys = random.sample(range(metadata.n_cols * metadata.n_rows), metadata.n_cols * metadata.n_rows)
         # create segment data structures + determine brightness/location
         for c in range(metadata.n_cols):
             for r in range(metadata.n_rows):
@@ -176,6 +177,7 @@ class MosaicManagementService:
                     fillable=False,
                     filled=False,
                     is_start_segment=False,
+                    random_sort_key=random_sort_keys.pop(0),
                 )
                 np_segment = pixels.pixel_array[new_seg.y_min : new_seg.y_max, new_seg.x_min : new_seg.x_max]
                 new_seg.brightness = get_brightness_category(np2pil(np_segment))

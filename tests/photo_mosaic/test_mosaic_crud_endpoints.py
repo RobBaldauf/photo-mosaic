@@ -222,3 +222,22 @@ def test_reset_mosaic(prepare_db):
 
     fillable_segments = db.get_segments(mosaic_id=mosaic_id, fillable=True)
     assert len(fillable_segments) == 10
+
+
+def test_create_mosaic_invalid_param(prepare_db):
+    # pylint: disable=redefined-outer-name
+    client, _ = prepare_db
+    response = client.post(
+        "/mosaic/",
+        files={"file": ("filename", pil2bytes(np2pil(image_0)), "image/jpeg")},
+        data={
+            "num_segments": config.num_segments,
+            "mosaic_bg_brightness": -1,
+            "mosaic_blend_value": config.mosaic_blend_value,
+            "segment_blend_value": config.segment_blend_value,
+            "segment_blur_low": config.segment_blur_low,
+            "segment_blur_medium": config.segment_blur_medium,
+            "segment_blur_high": config.segment_blur_high,
+        },
+    )
+    assert response.status_code == 422

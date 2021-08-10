@@ -146,6 +146,22 @@ def test_get_current_mosaic(prepare_db):
     np.testing.assert_array_equal(img, image_0)
 
 
+def test_get_current_mosaic_non_existing_id(prepare_db):
+    # pylint: disable=redefined-outer-name
+    response = prepare_db.get("/mosaic/11111111-2222-3333-4444-555555555559")
+    assert response.status_code == 404
+    json_res = {"detail": "mosaic id (11111111-2222-3333-4444-555555555559) does not exist."}
+    assert response.json() == json_res
+
+
+def test_get_current_mosaic_invalid_id(prepare_db):
+    # pylint: disable=redefined-outer-name
+    response = prepare_db.get("/mosaic/1")
+    assert response.status_code == 400
+    json_res = {"detail": "mosaic id (1) has to be of format UUID4!"}
+    assert response.json() == json_res
+
+
 def test_get_current_mosaic_thumbnail(prepare_db):
     # pylint: disable=redefined-outer-name
     response = prepare_db.get(f"/mosaic/{m_0.id}/thumbnail")

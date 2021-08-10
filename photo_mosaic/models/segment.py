@@ -16,3 +16,4 @@ class Segment(BaseModel):
     fillable: bool
     filled: bool
     is_start_segment: bool
+    random_sort_key: int
