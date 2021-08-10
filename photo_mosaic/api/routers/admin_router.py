@@ -75,7 +75,7 @@ async def post_mosaic(
     try:
         config = MosaicConfig(
             num_segments=num_segments,
-            mosaic_background_brightness=mosaic_bg_brightness,
+            mosaic_bg_brightness=mosaic_bg_brightness,
             mosaic_blend_value=mosaic_blend_value,
             segment_blend_value=segment_blend_value,
             segment_blur_low=segment_blur_low,
