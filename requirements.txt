@@ -1,11 +1,11 @@
-fastapi==0.65.1
+fastapi==0.65.2
 uvicorn[standard]==0.13.4
 python-multipart==0.0.5
 pyjwt==2.0.1
-Pillow==7.2.0
+Pillow==8.2.0
 opencv-python==4.4.0.42
 pre-commit==2.13.0
 pylint==2.8.2
-tensorflow==2.3.0
+tensorflow==2.3.3
 tensorflow-hub==0.7.0
 pytest==6.2.4
