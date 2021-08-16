@@ -27,7 +27,6 @@ RUN sed -i '\
 # generate JWT KEY and add to config file
 ARG JWT_SECRET
 COPY scripts/generate_api_key.py .
-# RUN secret=$(python3 generate_api_key.py -s $JWT_SECRET) && sed -i "s/JWT_SECRET=.*/JWT_SECRET=$secret/g" config/.env && echo "API_KEY=$secret"
 RUN sed -i "s/JWT_SECRET=.*/JWT_SECRET=$JWT_SECRET/g" config/.env
 RUN python3 generate_api_key.py -s $JWT_SECRET
 RUN rm -f generate_api_key.py

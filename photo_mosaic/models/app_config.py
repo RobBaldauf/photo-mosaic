@@ -42,17 +42,6 @@ class AppConfig(BaseSettings):
     high_brightness_min: int
     high_brightness_max: int
 
-    # mail config
-    mail_username: str
-    mail_password: str
-    mail_from: str
-    mail_port: int
-    mail_server: str
-    mail_tls: bool
-    mail_ssl: bool
-    mail_use_credentials: bool
-    mail_validate_certs: bool
-
     class Config:
         env_file = "config/.env"
 
