@@ -114,7 +114,7 @@ def test_segment_sampling(prepare_db):
 
     # test dark sampling
     response = client.post(
-        f"/mosaic/{mosaic_id}/segment/sample",
+        f"/mosaic/{mosaic_id}/segment/sample/0",
         files={"file": ("filename", pil2bytes(np2pil(dark_portrait)), "image/jpeg")},
     )
     assert response.status_code == 200
@@ -124,7 +124,7 @@ def test_segment_sampling(prepare_db):
 
     # test medium sampling
     response = client.post(
-        f"/mosaic/{mosaic_id}/segment/sample",
+        f"/mosaic/{mosaic_id}/segment/sample/5",
         files={"file": ("filename", pil2bytes(np2pil(medium_portrait)), "image/jpeg")},
     )
     assert response.status_code == 200
@@ -134,7 +134,7 @@ def test_segment_sampling(prepare_db):
 
     # test bright sampling
     response = client.post(
-        f"/mosaic/{mosaic_id}/segment/sample",
+        f"/mosaic/{mosaic_id}/segment/sample/25",
         files={"file": ("filename", pil2bytes(np2pil(bright_portrait)), "image/jpeg")},
     )
     assert response.status_code == 200
@@ -163,7 +163,7 @@ def test_segment_filling(prepare_db):
     mosaic_id = response.headers["mosaic_id"]
 
     response = client.post(
-        f"/mosaic/{mosaic_id}/segment/sample",
+        f"/mosaic/{mosaic_id}/segment/sample/0",
         files={"file": ("filename", pil2bytes(np2pil(bright_portrait)), "image/jpeg")},
     )
     assert response.status_code == 200
