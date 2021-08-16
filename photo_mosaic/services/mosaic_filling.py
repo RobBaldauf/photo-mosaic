@@ -67,6 +67,7 @@ class MosaicFillingService:
             seg_index = sample_index % len(segments)
         else:
             seg_index = sample_index
+
         # apply filter
         seg = segments[seg_index]
         orig_pixels = db.read_image_pixels(mosaic_id, IMAGE_PIXELS_CATEGORY_ORIGINAL)

@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse, Response
 
 from photo_mosaic.services.mosaic_filling import filling_service
@@ -146,7 +146,7 @@ async def get_mosaic_gif(mosaic_id: str) -> Response:
 
 
 @router.post(
-    "/mosaic/{mosaic_id}/segment/sample",
+    "/mosaic/{mosaic_id}/segment/sample/{sample_index}",
     name="get_segment_samples",
     summary="For an uploaded image, select a matching mosaic segment (based on brightness and position), apply the "
     "segment as a 'filter' to the uploaded image and return the resulting image as well as the id of the used "
@@ -154,22 +154,25 @@ async def get_mosaic_gif(mosaic_id: str) -> Response:
 )
 async def post_segment_sample(
     mosaic_id: str,
+    sample_index: int = Query(
+        ...,
+        ge=0,
+        le=65536,
+        description="The index of the random sample. Different values return different filter samples",
+    ),
     file: UploadFile = File(
         ...,
         description="A portrait image that shall be uploaded, merged with a segment and "
         "returned as a 'stylised' version.",
     ),
-    sample_index: int = Form(
-        0,
-        ge=0,
-        le=65536,
-        description="The index of the random sample. Different values return different filter samples",
-    ),
 ) -> Response:
     input_image_bytes = await file.read()
     try:
         m_id = validate_request_uuid(mosaic_id, "mosaic")
-        output_image_bytes, segment_id = filling_service.get_segment_sample(m_id, input_image_bytes, sample_index)
+        if sample_index:
+            output_image_bytes, segment_id = filling_service.get_segment_sample(m_id, input_image_bytes, sample_index)
+        else:
+            output_image_bytes, segment_id = filling_service.get_segment_sample(m_id, input_image_bytes, 0)
         return Response(
             content=output_image_bytes,
             media_type="image/jpeg",
