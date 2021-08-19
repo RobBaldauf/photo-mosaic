@@ -78,7 +78,7 @@ async def post_mosaic(
     image_bytes = await file.read()
     try:
         config = MosaicConfig(
-            title=title,
+            title=str(title),
             num_segments=num_segments,
             mosaic_bg_brightness=mosaic_bg_brightness,
             mosaic_blend_value=mosaic_blend_value,
