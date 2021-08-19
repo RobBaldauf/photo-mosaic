@@ -249,19 +249,19 @@ class MosaicManagementService:
                                              "ORIGINAL": mosaics created by the admin (not automatically by the API),
                                              "ALL": all mosaics)
 
-        Returns: A list of dictionaries each containing id and index for a mosaic
+        Returns: A list of dictionaries each containing id, index and title for a mosaic
 
         """
         mosaic_list = db.read_mosaic_list()
         results = []
-        for mosaic_id, index, active, filled, original in mosaic_list:
+        for mosaic_id, index, title, active, filled, original in mosaic_list:
             if (
                 (filter_by == "ACTIVE" and active)
                 or (filter_by == "FILLED" and filled)
                 or (filter_by == "ORIGINAL" and original)
                 or (filter_by == "ALL")
             ):
-                results.append({"id": mosaic_id, "index": index})
+                results.append({"id": mosaic_id, "index": index, "title": title})
         return results
 
     @staticmethod

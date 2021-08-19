@@ -23,6 +23,7 @@ SEGMENT_HEIGHT = 40
 N_ROWS = N_COLS = 20
 
 config = MosaicConfig(
+    title="Test Mosaic",
     num_segments=200,
     mosaic_bg_brightness=0.2,
     mosaic_blend_value=0.2,
@@ -66,6 +67,7 @@ def test_create_mosaic(prepare_db):
         "/mosaic/",
         files={"file": ("filename", pil2bytes(np2pil(image_0)), "image/jpeg")},
         data={
+            "title": config.title,
             "num_segments": config.num_segments,
             "mosaic_bg_brightness": config.mosaic_bg_brightness,
             "mosaic_blend_value": config.mosaic_blend_value,
@@ -132,6 +134,7 @@ def test_delete_mosaic(prepare_db):
         "/mosaic/",
         files={"file": ("filename", pil2bytes(np2pil(image_0)), "image/jpeg")},
         data={
+            "title": config.title,
             "num_segments": config.num_segments,
             "mosaic_bg_brightness": config.mosaic_bg_brightness,
             "mosaic_blend_value": config.mosaic_blend_value,
@@ -156,6 +159,7 @@ def test_reset_mosaic(prepare_db):
         "/mosaic/",
         files={"file": ("filename", pil2bytes(np2pil(image_0)), "image/jpeg")},
         data={
+            "title": config.title,
             "num_segments": config.num_segments,
             "mosaic_bg_brightness": config.mosaic_bg_brightness,
             "mosaic_blend_value": config.mosaic_blend_value,
@@ -231,6 +235,7 @@ def test_create_mosaic_invalid_param(prepare_db):
         "/mosaic/",
         files={"file": ("filename", pil2bytes(np2pil(image_0)), "image/jpeg")},
         data={
+            "title": config.title,
             "num_segments": config.num_segments,
             "mosaic_bg_brightness": -1,
             "mosaic_blend_value": config.mosaic_blend_value,

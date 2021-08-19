@@ -62,10 +62,10 @@ class SQLitePersistenceService:
         num = cur.fetchone()[0]
         return num
 
-    def read_mosaic_list(self) -> List[Tuple[str, int, bool, bool, bool]]:
+    def read_mosaic_list(self) -> List[Tuple[str, int, str, bool, bool, bool]]:
         con = self.connect()
         cur = con.cursor()
-        query = f"""SELECT id, idx, active, filled, original FROM {MOSAIC_METADATA_TABLE};"""
+        query = f"""SELECT id, idx, title, active, filled, original FROM {MOSAIC_METADATA_TABLE};"""
         cur.execute(query)
         rows = cur.fetchall()
         return rows
@@ -75,9 +75,9 @@ class SQLitePersistenceService:
         cur = con.cursor()
         cur.execute(
             f"""INSERT OR REPLACE INTO {MOSAIC_METADATA_TABLE} (id, active, filled,
-               original, segment_width, segment_height, n_rows, n_cols, space_top, space_left, num_segments,
+               original, segment_width, segment_height, n_rows, n_cols, space_top, space_left, title, num_segments,
                mosaic_background_brightness, mosaic_blend_value, segment_blend_value, segment_blur_low,
-               segment_blur_medium, segment_blur_high) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               segment_blur_medium, segment_blur_high) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 metadata.id,
                 metadata.active,
@@ -89,6 +89,7 @@ class SQLitePersistenceService:
                 metadata.n_cols,
                 metadata.space_top,
                 metadata.space_left,
+                metadata.mosaic_config.title,
                 metadata.mosaic_config.num_segments,
                 metadata.mosaic_config.mosaic_bg_brightness,
                 metadata.mosaic_config.mosaic_blend_value,
@@ -104,9 +105,9 @@ class SQLitePersistenceService:
         cur = con.cursor()
         cur.execute(
             f"""INSERT OR REPLACE INTO {MOSAIC_METADATA_TABLE} (id, idx, active, filled,
-            original, segment_width, segment_height, n_rows, n_cols, space_top, space_left, num_segments,
+            original, segment_width, segment_height, n_rows, n_cols, space_top, space_left, title, num_segments,
             mosaic_background_brightness, mosaic_blend_value, segment_blend_value, segment_blur_low,
-            segment_blur_medium, segment_blur_high) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            segment_blur_medium, segment_blur_high) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 metadata.id,
                 metadata.idx,
@@ -119,6 +120,7 @@ class SQLitePersistenceService:
                 metadata.n_cols,
                 metadata.space_top,
                 metadata.space_left,
+                metadata.mosaic_config.title,
                 metadata.mosaic_config.num_segments,
                 metadata.mosaic_config.mosaic_bg_brightness,
                 metadata.mosaic_config.mosaic_blend_value,
@@ -132,9 +134,10 @@ class SQLitePersistenceService:
     def read_mosaic_metadata(self, mosaic_id: str, active_only: bool = False) -> MosaicMetadata:
         con = self.connect()
         cur = con.cursor()
-        query = f"""SELECT num_segments, mosaic_background_brightness, mosaic_blend_value, segment_blend_value,
-                segment_blur_low, segment_blur_medium, segment_blur_high, idx, active, filled, original, segment_width,
-                segment_height, n_rows, n_cols, space_top, space_left FROM {MOSAIC_METADATA_TABLE} WHERE id=?"""
+        query = f"""SELECT title, num_segments, mosaic_background_brightness, mosaic_blend_value, segment_blend_value,
+                segment_blur_low, segment_blur_medium, segment_blur_high, idx, active, filled, original,
+                segment_width, segment_height, n_rows, n_cols, space_top, space_left FROM {MOSAIC_METADATA_TABLE}
+                WHERE id=?"""
         if active_only:
             query += " AND active=1;"
         else:
@@ -148,26 +151,27 @@ class SQLitePersistenceService:
             raise HTTPException(status_code=404, detail=f"Mosaic {mosaic_id} does not exist.")
         row = rows[0]
         config = MosaicConfig(
-            num_segments=row[0],
-            mosaic_bg_brightness=row[1],
-            mosaic_blend_value=row[2],
-            segment_blend_value=row[3],
-            segment_blur_low=row[4],
-            segment_blur_medium=row[5],
-            segment_blur_high=row[6],
+            title=row[0],
+            num_segments=row[1],
+            mosaic_bg_brightness=row[2],
+            mosaic_blend_value=row[3],
+            segment_blend_value=row[4],
+            segment_blur_low=row[5],
+            segment_blur_medium=row[6],
+            segment_blur_high=row[7],
         )
         return MosaicMetadata(
             id=mosaic_id,
-            idx=row[7],
-            active=row[8],
-            filled=row[9],
-            original=row[10],
-            segment_width=row[11],
-            segment_height=row[12],
-            n_rows=row[13],
-            n_cols=row[14],
-            space_top=row[15],
-            space_left=row[16],
+            idx=row[8],
+            active=row[9],
+            filled=row[10],
+            original=row[11],
+            segment_width=row[12],
+            segment_height=row[13],
+            n_rows=row[14],
+            n_cols=row[15],
+            space_top=row[16],
+            space_left=row[17],
             mosaic_config=config,
         )
 
@@ -175,7 +179,7 @@ class SQLitePersistenceService:
         mosaic_list = self.read_mosaic_list()
         new_active = None
         exists = False
-        for m_id, _, active, _, _ in mosaic_list:
+        for m_id, _, _, active, _, _ in mosaic_list:
             if exists:
                 new_active = m_id
                 break
@@ -407,6 +411,7 @@ class SQLitePersistenceService:
                             n_cols INTEGER,
                             space_top INTEGER,
                             space_left INTEGER,
+                            title TEXT,
                             num_segments INTEGER,
                             mosaic_background_brightness REAL,
                             mosaic_blend_value REAL,
