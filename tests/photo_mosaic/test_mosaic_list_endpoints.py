@@ -17,7 +17,19 @@ SEGMENT_WIDTH = 30
 SEGMENT_HEIGHT = 40
 N_ROWS = N_COLS = 10
 
-config = MosaicConfig(
+config_0 = MosaicConfig(
+    title="Test Mosaic",
+    num_segments=100,
+    mosaic_bg_brightness=0.25,
+    mosaic_blend_value=0.25,
+    segment_blend_value=0.4,
+    segment_blur_low=4,
+    segment_blur_medium=3,
+    segment_blur_high=2,
+)
+
+config_1 = MosaicConfig(
+    title="",
     num_segments=100,
     mosaic_bg_brightness=0.25,
     mosaic_blend_value=0.25,
@@ -39,7 +51,7 @@ m_0 = MosaicMetadata(
     n_cols=N_COLS,
     space_top=1,
     space_left=1,
-    mosaic_config=config,
+    mosaic_config=config_0,
 )
 
 m_1 = MosaicMetadata(
@@ -54,7 +66,7 @@ m_1 = MosaicMetadata(
     n_cols=N_COLS,
     space_top=1,
     space_left=1,
-    mosaic_config=config,
+    mosaic_config=config_1,
 )
 
 image_0 = np.zeros((SEGMENT_HEIGHT * N_ROWS, SEGMENT_WIDTH * N_COLS, 3), dtype="uint8")
@@ -110,7 +122,12 @@ def test_list_all_mosaics(prepare_db):
     # pylint: disable=redefined-outer-name
     response = prepare_db.get("/mosaic/list")
     assert response.status_code == 200
-    json_res = {"mosaic_list": [{"id": m_0.id, "index": 1}, {"id": m_1.id, "index": 2}]}
+    json_res = {
+        "mosaic_list": [
+            {"id": m_0.id, "index": 1, "title": config_0.title},
+            {"id": m_1.id, "index": 2, "title": config_1.title},
+        ]
+    }
     assert response.json() == json_res
 
 
@@ -118,7 +135,7 @@ def test_list_active_mosaics(prepare_db):
     # pylint: disable=redefined-outer-name
     response = prepare_db.get("/mosaic/list/active")
     assert response.status_code == 200
-    json_res = {"mosaic_list": [{"id": m_1.id, "index": 2}]}
+    json_res = {"mosaic_list": [{"id": m_1.id, "index": 2, "title": config_1.title}]}
     assert response.json() == json_res
 
 
@@ -126,7 +143,7 @@ def test_list_original_mosaics(prepare_db):
     # pylint: disable=redefined-outer-name
     response = prepare_db.get("/mosaic/list/original")
     assert response.status_code == 200
-    json_res = {"mosaic_list": [{"id": m_0.id, "index": 1}]}
+    json_res = {"mosaic_list": [{"id": m_0.id, "index": 1, "title": config_0.title}]}
     assert response.json() == json_res
 
 
@@ -134,7 +151,7 @@ def test_list_filled_mosaics(prepare_db):
     # pylint: disable=redefined-outer-name
     response = prepare_db.get("/mosaic/list/filled")
     assert response.status_code == 200
-    json_res = {"mosaic_list": [{"id": m_0.id, "index": 1}]}
+    json_res = {"mosaic_list": [{"id": m_0.id, "index": 1, "title": config_0.title}]}
     assert response.json() == json_res
 
 
@@ -187,6 +204,7 @@ def test_get_mosaic_metadata(prepare_db):
         "space_top": 1,
         "space_left": 1,
         "mosaic_config": {
+            "title": config_0.title,
             "num_segments": 100,
             "mosaic_bg_brightness": 0.25,
             "mosaic_blend_value": 0.25,

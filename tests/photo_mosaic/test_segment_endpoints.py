@@ -18,6 +18,7 @@ N_ROWS = 10
 N_COLS = 3
 
 config = MosaicConfig(
+    title="Test Mosaic",
     num_segments=30,
     mosaic_bg_brightness=0.2,
     mosaic_blend_value=0.2,
@@ -73,6 +74,7 @@ def test_segment_brightness_detection(prepare_db):
         "/mosaic/",
         files={"file": ("filename", pil2bytes(np2pil(image_0)), "image/jpeg")},
         data={
+            "title": config.title,
             "num_segments": config.num_segments,
             "mosaic_bg_brightness": config.mosaic_bg_brightness,
             "mosaic_blend_value": config.mosaic_blend_value,
@@ -100,6 +102,7 @@ def test_segment_sampling(prepare_db):
         "/mosaic/",
         files={"file": ("filename", pil2bytes(np2pil(image_0)), "image/jpeg")},
         data={
+            "title": config.title,
             "num_segments": config.num_segments,
             "mosaic_bg_brightness": config.mosaic_bg_brightness,
             "mosaic_blend_value": config.mosaic_blend_value,
@@ -150,6 +153,7 @@ def test_segment_filling(prepare_db):
         "/mosaic/",
         files={"file": ("filename", pil2bytes(np2pil(image_0)), "image/jpeg")},
         data={
+            "title": config.title,
             "num_segments": config.num_segments,
             "mosaic_bg_brightness": config.mosaic_bg_brightness,
             "mosaic_blend_value": config.mosaic_blend_value,
@@ -195,6 +199,7 @@ def test_segment_filling_order_dark(prepare_db):
         "/mosaic/",
         files={"file": ("filename", pil2bytes(np2pil(image_0)), "image/jpeg")},
         data={
+            "title": config.title,
             "num_segments": config.num_segments,
             "mosaic_bg_brightness": config.mosaic_bg_brightness,
             "mosaic_blend_value": config.mosaic_blend_value,
@@ -246,6 +251,7 @@ def test_segment_filling_order_medium(prepare_db):
         "/mosaic/",
         files={"file": ("filename", pil2bytes(np2pil(image_0)), "image/jpeg")},
         data={
+            "title": config.title,
             "num_segments": config.num_segments,
             "mosaic_bg_brightness": config.mosaic_bg_brightness,
             "mosaic_blend_value": config.mosaic_blend_value,
@@ -297,6 +303,7 @@ def test_segment_filling_order_bright(prepare_db):
         "/mosaic/",
         files={"file": ("filename", pil2bytes(np2pil(image_0)), "image/jpeg")},
         data={
+            "title": config.title,
             "num_segments": config.num_segments,
             "mosaic_bg_brightness": config.mosaic_bg_brightness,
             "mosaic_blend_value": config.mosaic_blend_value,
@@ -348,6 +355,7 @@ def test_segment_filling_mosaic_end(prepare_db):
         "/mosaic/",
         files={"file": ("filename", pil2bytes(np2pil(image_0)), "image/jpeg")},
         data={
+            "title": config.title,
             "num_segments": config.num_segments,
             "mosaic_bg_brightness": config.mosaic_bg_brightness,
             "mosaic_blend_value": config.mosaic_blend_value,
@@ -387,7 +395,7 @@ def test_segment_filling_mosaic_end(prepare_db):
     # check if new mosaic created
     mosaic_list = db.read_mosaic_list()
     new_mosaic_id = None
-    for m_id, _, _, _, original in mosaic_list:
+    for m_id, _, _, _, _, original in mosaic_list:
         if not original:
             new_mosaic_id = m_id
     assert new_mosaic_id is not None

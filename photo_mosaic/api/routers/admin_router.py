@@ -21,6 +21,10 @@ auth_service = AuthService()
 )
 async def post_mosaic(
     file: UploadFile = File(..., description="The image that shall be transformed into a mosaic."),
+    title: str = Form(
+        "",
+        description="The title of the mosaic image",
+    ),
     num_segments: int = Form(
         300,
         ge=10,
@@ -74,6 +78,7 @@ async def post_mosaic(
     image_bytes = await file.read()
     try:
         config = MosaicConfig(
+            title=str(title),
             num_segments=num_segments,
             mosaic_bg_brightness=mosaic_bg_brightness,
             mosaic_blend_value=mosaic_blend_value,

@@ -248,7 +248,7 @@ class MosaicFillingService:
             # to ensure endless filling of mosaics
             mosaic_list = db.read_mosaic_list()
             original_mosaics = []
-            for m_id, _, _, _, original in mosaic_list:
+            for m_id, _, _, _, _, original in mosaic_list:
                 if original:
                     original_mosaics.append(m_id)
             for i, m_id in enumerate(original_mosaics):
@@ -269,7 +269,7 @@ class MosaicFillingService:
         """
         mosaic_list = db.read_mosaic_list()
         new_active = None
-        for mosaic_id, _, active, filled, _ in mosaic_list:
+        for mosaic_id, _, _, active, filled, _ in mosaic_list:
             if active:
                 return mosaic_id
             if not filled and not new_active:
