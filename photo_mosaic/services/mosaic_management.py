@@ -270,14 +270,14 @@ class MosaicManagementService:
         db.commit()
 
     @staticmethod
-    def reset_mosaic(mosaic_id: str) -> str:
+    def reset_mosaic(mosaic_id: str):
         """
         Reset a mosaic to its state right after creation.
         All associated RawImage, ImagePixels and Segment data structures will be cleared.
         Args:
             mosaic_id: The mosaic id
 
-        Returns: The mosaic id
+        Returns: None
 
         """
         # load current mosaic data
@@ -323,7 +323,79 @@ class MosaicManagementService:
         db.upsert_raw_image(gif_image)
         db.commit()
 
-        return mosaic_id
+    @staticmethod
+    def get_segment_list(mosaic_id: str) -> List[dict]:
+        """
+        Get a list of segments for the given mosaic_id
+
+        Returns: A list of dictionaries each containing id and metadata for a segment
+
+        """
+        metadata = db.read_mosaic_metadata(mosaic_id)
+        segment_obj_list = db.get_segments(mosaic_id=mosaic_id)
+        res_list = []
+        for seg in segment_obj_list:
+            res_list.append(
+                {
+                    "id": seg.id,
+                    "idx": seg.row_idx * metadata.n_cols + seg.col_idx,
+                    "row": seg.row_idx,
+                    "col": seg.col_idx,
+                    "bri": seg.brightness,
+                    "fillable": int(seg.fillable),
+                    "filled": int(seg.filled),
+                    "start": int(seg.is_start_segment),
+                }
+            )
+        return res_list
+
+    @staticmethod
+    def reset_segment(mosaic_id: str, segment_id: str):
+        """
+        Reset a segment of a mosaic to its state right after creation.
+        Args:
+            mosaic_id: The mosaic id
+            segment_id: The segment id
+
+        Returns: None
+
+        """
+        # load current mosaic data
+        metadata = db.read_mosaic_metadata(mosaic_id)
+        orig_pixels = db.read_image_pixels(mosaic_id, IMAGE_PIXELS_CATEGORY_ORIGINAL)
+        current_pixels = db.read_image_pixels(mosaic_id, IMAGE_PIXELS_CATEGORY_CURRENT)
+        seg = db.get_segments(mosaic_id=mosaic_id, segment_id=segment_id)[0]
+        bg_pil_image = adapt_brightness(np2pil(orig_pixels.pixel_array), metadata.mosaic_config.mosaic_bg_brightness)
+
+        # reset segment
+        seg.filled = False
+        seg.fillable = True
+        db.upsert_segments([seg])
+
+        # reset segment in current pixel np array
+        segment_pixels_new = pil2np(bg_pil_image)[seg.y_min : seg.y_max, seg.x_min : seg.x_max]
+        current_pixels.pixel_array[seg.y_min : seg.y_max, seg.x_min : seg.x_max] = segment_pixels_new
+        db.upsert_image_pixels(current_pixels)
+
+        # reset current jpeg
+        current_img = np2pil(current_pixels.pixel_array)
+        current_jpeg = RawImage(
+            mosaic_id=metadata.id, category=RAW_IMAGE_CURRENT_JPEG, image_bytes=pil2bytes(current_img)
+        )
+        db.upsert_raw_image(current_jpeg)
+
+        # create current thumbnail
+        current_img.thumbnail((get_config().current_image_thumbnail_size, get_config().current_image_thumbnail_size))
+        current_jpeg_small = RawImage(
+            mosaic_id=metadata.id, category=RAW_IMAGE_CURRENT_SMALL_JPEG, image_bytes=pil2bytes(current_img)
+        )
+        db.upsert_raw_image(current_jpeg_small)
+        db.commit()
+
+        # update filling gif
+        gif_image = mosaic_2_gif(mosaic_id=metadata.id)
+        db.upsert_raw_image(gif_image)
+        db.commit()
 
 
 mgmt_service = MosaicManagementService()
