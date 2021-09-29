@@ -107,7 +107,7 @@ async def reset_mosaic(mosaic_id: str, key: APIKey = Depends(auth_service.admin_
     try:
         m_id = validate_request_uuid(mosaic_id, "mosaic")
         mgmt_service.reset_mosaic(m_id)
-        return JSONResponse(content={"msg": "Mosaic reseted!"}, headers={"mosaic_id": m_id})
+        return JSONResponse(content={"msg": "Mosaic reset!"}, headers={"mosaic_id": m_id})
     except HTTPException:
         raise
     except BaseException as exc:
@@ -127,6 +127,45 @@ async def delete_mosaic(mosaic_id: str, key: APIKey = Depends(auth_service.admin
         m_id = validate_request_uuid(mosaic_id, "mosaic")
         mgmt_service.delete_mosaic(m_id)
         return JSONResponse(content={"msg": "Mosaic deleted!"}, headers={"mosaic_id": m_id})
+    except HTTPException:
+        raise
+    except BaseException as exc:
+        logging.error("", exc_info=True)
+        raise HTTPException(status_code=500, detail="An unknown server error occurred") from exc
+
+
+@router.get(
+    "/mosaic/{mosaic_id}/segment/list",
+    name="list_segments",
+    summary="List the ids of all segments in the mosaic.",
+)
+async def list_segments(mosaic_id: str, key: APIKey = Depends(auth_service.admin_auth)) -> JSONResponse:
+    # pylint: disable=unused-argument
+    try:
+        m_id = validate_request_uuid(mosaic_id, "mosaic")
+        segment_list = mgmt_service.get_segment_list(mosaic_id)
+        return JSONResponse(content={"segment_list": segment_list}, headers={"mosaic_id": m_id})
+    except HTTPException:
+        raise
+    except BaseException as exc:
+        logging.error("", exc_info=True)
+        raise HTTPException(status_code=500, detail="An unknown server error occurred") from exc
+
+
+@router.post(
+    "/mosaic/{mosaic_id}/segment/{segment_id}/reset",
+    name="reset_segment",
+    summary="Reset a single segment of a mosaic to its state after creation.",
+)
+async def reset_segment(
+    mosaic_id: str, segment_id: str, key: APIKey = Depends(auth_service.admin_auth)
+) -> JSONResponse:
+    # pylint: disable=unused-argument
+    try:
+        m_id = validate_request_uuid(mosaic_id, "mosaic")
+        s_id = validate_request_uuid(segment_id, "segment")
+        mgmt_service.reset_segment(m_id, s_id)
+        return JSONResponse(content={"msg": "Segment reset!"}, headers={"mosaic_id": m_id, "segment_id": s_id})
     except HTTPException:
         raise
     except BaseException as exc:
