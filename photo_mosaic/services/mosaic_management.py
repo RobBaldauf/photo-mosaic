@@ -364,7 +364,7 @@ class MosaicManagementService:
         metadata = db.read_mosaic_metadata(mosaic_id)
         orig_pixels = db.read_image_pixels(mosaic_id, IMAGE_PIXELS_CATEGORY_ORIGINAL)
         current_pixels = db.read_image_pixels(mosaic_id, IMAGE_PIXELS_CATEGORY_CURRENT)
-        seg = db.get_segments(mosaic_id=mosaic_id, segment_id=segment_id)[0]
+        seg = db.get_segments(mosaic_id=mosaic_id, id=segment_id)[0]
         bg_pil_image = adapt_brightness(np2pil(orig_pixels.pixel_array), metadata.mosaic_config.mosaic_bg_brightness)
 
         # reset segment
