@@ -20,7 +20,7 @@ class AppConfig(BaseSettings):
     nsfw_model_path: str
 
     # db config
-    sql_lite_path: str
+    sqlite_path: str
 
     # Mosaic config
     original_image_max_size: int

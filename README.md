@@ -104,7 +104,7 @@ ENABLE_NSFW_CONTENT_FILTER=false # enables/disables nsfw content filtering
 NSFW_MODEL_PATH=nsfw_model/mobilenet_v2_140_224 # the path to the NSFW model
 
 # db config
-SQL_LITE_PATH=/db # path in which the sql lite db file shall be stored
+SQLITE_PATH=/db # path in which the sqlite db file shall be stored
 ```
 
 - To create a JWT_SECRET use this script:

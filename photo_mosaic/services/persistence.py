@@ -176,28 +176,10 @@ class SQLitePersistenceService:
         )
 
     def delete_mosaic_metadata(self, mosaic_id: str):
-        mosaic_list = self.read_mosaic_list()
-        new_active = None
-        exists = False
-        for m_id, _, _, active, _, _ in mosaic_list:
-            if exists:
-                new_active = m_id
-                break
-            if m_id == mosaic_id:
-                exists = True
-                if not active:
-                    break
-            else:
-                new_active = m_id
-
-        if exists:
-            con = self.connect()
-            cur = con.cursor()
-            cur.execute(f"""DELETE FROM {MOSAIC_METADATA_TABLE} WHERE id=?;""", (mosaic_id,))
-            if new_active:
-                cur.execute(f"""UPDATE {MOSAIC_METADATA_TABLE} SET active = 1  WHERE id = ?;""", (new_active,))
-        else:
-            raise HTTPException(status_code=404, detail=f"Mosaic {mosaic_id} does not exist.")
+        # if exists:
+        con = self.connect()
+        cur = con.cursor()
+        cur.execute(f"""DELETE FROM {MOSAIC_METADATA_TABLE} WHERE id=?;""", (mosaic_id,))
 
     def upsert_raw_image(self, raw_image: RawImage):
         con = self.connect()
@@ -261,7 +243,7 @@ class SQLitePersistenceService:
         if len(rows) == 0:
             raise HTTPException(
                 status_code=404,
-                detail=f"No raw image exist for mosaic_id={mosaic_id} " f"AND category={category} does not exist.",
+                detail=f"No raw image exists for mosaic_id={mosaic_id} " f"AND category={category}.",
             )
         row = rows[0]
         return ImagePixels(mosaic_id=mosaic_id, category=category, pixel_array=row[0])
@@ -494,4 +476,4 @@ sqlite3.register_adapter(np.ndarray, _write_np_array)
 sqlite3.register_converter("array", _read_np_array)
 
 # initialize SQLite Service
-db = SQLitePersistenceService(get_config().sql_lite_path)
+db = SQLitePersistenceService(get_config().sqlite_path)

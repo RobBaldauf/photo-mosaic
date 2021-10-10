@@ -6,10 +6,7 @@ from fastapi.testclient import TestClient
 
 from photo_mosaic.models.image_pixels import IMAGE_PIXELS_CATEGORY_CURRENT
 from photo_mosaic.models.mosaic_config import MosaicConfig
-from photo_mosaic.models.raw_image import (
-    RAW_IMAGE_CURRENT_JPEG,
-    RAW_IMAGE_CURRENT_SMALL_JPEG,
-)
+from photo_mosaic.models.raw_image import RAW_IMAGE_CURRENT_JPEG
 from photo_mosaic.utils.image_processing import bytes2pil, np2pil, pil2bytes, pil2np
 
 SEGMENT_WIDTH = 30
@@ -50,7 +47,7 @@ image_0_small_reduced_brightness = np.ones((512, 384, 3), dtype="uint8") * 25
 def prepare_db(request, tmp_path):
     db_path = tmp_path / "db"
     db_path.mkdir()
-    os.environ["SQL_LITE_PATH"] = str(db_path)
+    os.environ["SQLITE_PATH"] = str(db_path)
 
     from photo_mosaic.app import app
     from photo_mosaic.services.persistence import db
@@ -346,58 +343,3 @@ def test_segment_filling_order_bright(prepare_db):
     stats = db.get_segment_stats(mosaic_id)
     expected_stats = {0: 5, 1: 0, 2: 0}
     assert stats == expected_stats
-
-
-def test_segment_filling_mosaic_end(prepare_db):
-    # pylint: disable=redefined-outer-name
-    client, db = prepare_db
-    response = client.post(
-        "/mosaic/",
-        files={"file": ("filename", pil2bytes(np2pil(image_0)), "image/jpeg")},
-        data={
-            "title": config.title,
-            "num_segments": config.num_segments,
-            "mosaic_bg_brightness": config.mosaic_bg_brightness,
-            "mosaic_blend_value": config.mosaic_blend_value,
-            "segment_blend_value": config.segment_blend_value,
-            "segment_blur_low": config.segment_blur_low,
-            "segment_blur_medium": config.segment_blur_medium,
-            "segment_blur_high": config.segment_blur_high,
-        },
-    )
-    assert response.status_code == 200
-    mosaic_id = response.headers["mosaic_id"]
-
-    # fill mosaic
-    for _ in range(4):
-        response = client.post(
-            f"/mosaic/{mosaic_id}/segment",
-            files={"file": ("filename", pil2bytes(np2pil(bright_portrait)), "image/jpeg")},
-        )
-        assert response.status_code == 200
-    response = client.post(
-        f"/mosaic/{mosaic_id}/segment",
-        files={"file": ("filename", pil2bytes(np2pil(bright_portrait)), "image/jpeg")},
-        data={"quick_fill": "false"},
-    )
-    assert response.status_code == 200
-
-    # check if mosaic is closed
-    metadata = db.read_mosaic_metadata(mosaic_id)
-    assert metadata.filled is True and metadata.active is False
-    filled_np = pil2np(bytes2pil(db.read_raw_image(mosaic_id, RAW_IMAGE_CURRENT_JPEG).image_bytes))
-    assert filled_np.shape == image_0.shape
-    assert np.amin(filled_np) >= 45 and np.amax(filled_np) <= 162  # tolerance
-    filled_np = pil2np(bytes2pil(db.read_raw_image(mosaic_id, RAW_IMAGE_CURRENT_SMALL_JPEG).image_bytes))
-    assert filled_np.shape == image_0.shape
-    assert np.amin(filled_np) >= 45 and np.amax(filled_np) <= 162  # tolerance
-
-    # check if new mosaic created
-    mosaic_list = db.read_mosaic_list()
-    new_mosaic_id = None
-    for m_id, _, _, _, _, original in mosaic_list:
-        if not original:
-            new_mosaic_id = m_id
-    assert new_mosaic_id is not None
-    metadata = db.read_mosaic_metadata(new_mosaic_id)
-    assert metadata.filled is False and metadata.active is True
