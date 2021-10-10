@@ -34,7 +34,7 @@ def check_config() -> str:
     else:
         print("NSFW content filtering: DISABLED")
 
-    if not get_config().sql_lite_path:
+    if not get_config().sqlite_path:
         raise ValueError("Please set SQL_LITE_PATH via '.env' file or environment variable!")
     return documentation_url
 

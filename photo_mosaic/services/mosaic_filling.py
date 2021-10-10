@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from fastapi import HTTPException
 from PIL.Image import Image
@@ -12,7 +12,6 @@ from photo_mosaic.models.mosaic_metadata import MosaicMetadata
 from photo_mosaic.models.raw_image import (
     RAW_IMAGE_CURRENT_JPEG,
     RAW_IMAGE_CURRENT_SMALL_JPEG,
-    RAW_IMAGE_ORIGINAL_JPEG,
     RawImage,
 )
 from photo_mosaic.models.segment import Segment
@@ -194,87 +193,11 @@ class MosaicFillingService:
         db.commit()
 
         # check whether the total number of available segments is smaller then the required minimum
-        # mark the mosaic as inactive and filled
+        # if yes mark the mosaic as inactive and filled and switched to next
         stats = db.get_segment_stats(mosaic_id)
         if stats[0] + stats[1] + stats[2] < get_config().num_segments_min and not metadata.filled:
-            self._handle_mosaic_end(metadata)
-
-    def _handle_mosaic_end(self, metadata: MosaicMetadata):
-        """
-        If the number of segments in a mosaic is lower then the min. number of segments, the mosaic will be terminated.
-
-        Args:
-            metadata: The metadata of the mosaic that shall be terminated
-
-        """
-        metadata.filled = True
-        metadata.active = False
-        db.update_mosaic_metadata(metadata)
-        db.commit()
-
-        # fill remaining unfilled segments with original data and update artefacts
-        orig_pixels = db.read_image_pixels(metadata.id, IMAGE_PIXELS_CATEGORY_ORIGINAL)
-        current_pixels = db.read_image_pixels(metadata.id, IMAGE_PIXELS_CATEGORY_CURRENT)
-        segments = db.get_segments(mosaic_id=metadata.id, filled=False, fillable=True)
-        for seg in segments:
-            segment_data = orig_pixels.pixel_array[seg.y_min : seg.y_max, seg.x_min : seg.x_max]
-            current_pixels.pixel_array[seg.y_min : seg.y_max, seg.x_min : seg.x_max] = segment_data
-        db.upsert_image_pixels(current_pixels)
-        cur_pil = np2pil(current_pixels.pixel_array)
-        current_jpeg = RawImage(
-            mosaic_id=metadata.id,
-            category=RAW_IMAGE_CURRENT_JPEG,
-            image_bytes=pil2bytes(cur_pil),
-        )
-        db.upsert_raw_image(current_jpeg)
-
-        # update current image jpeg thumbnail
-        cur_pil.thumbnail((get_config().current_image_thumbnail_size, get_config().current_image_thumbnail_size))
-        current_jpeg_small = RawImage(
-            mosaic_id=metadata.id, category=RAW_IMAGE_CURRENT_SMALL_JPEG, image_bytes=pil2bytes(cur_pil)
-        )
-        db.upsert_raw_image(current_jpeg_small)
-
-        # check if other fillable mosaics are available
-        next_active_mosaic_id = self._get_active_mosaic_id()
-        if next_active_mosaic_id:
-            # set next fillable mosaic to active
-            new_active_mosaic = db.read_mosaic_metadata(next_active_mosaic_id)
-            new_active_mosaic.active = True
-            db.update_mosaic_metadata(new_active_mosaic)
-            db.commit()
-        else:
-            # no fillable mosaics are available -> clone all original mosaics and set the first of them as active
-            # to ensure endless filling of mosaics
-            mosaic_list = db.read_mosaic_list()
-            original_mosaics = []
-            for m_id, _, _, _, _, original in mosaic_list:
-                if original:
-                    original_mosaics.append(m_id)
-            for i, m_id in enumerate(original_mosaics):
-                original_bytes = db.read_raw_image(m_id, RAW_IMAGE_ORIGINAL_JPEG).image_bytes
-                new_id = mgmt_service.create_mosaic(original_bytes, metadata.mosaic_config)
-                new_metadata = db.read_mosaic_metadata(new_id)
-                new_metadata.original = False
-                if i == 0:
-                    new_metadata.active = True
-                db.update_mosaic_metadata(new_metadata)
-                db.commit()
-
-    @staticmethod
-    def _get_active_mosaic_id() -> Optional[str]:
-        """
-        Returns the active mosaic. If no active mosaic is found, return the next fillable mosaic.
-        If no fillable mosaic is found return None.
-        """
-        mosaic_list = db.read_mosaic_list()
-        new_active = None
-        for mosaic_id, _, _, active, filled, _ in mosaic_list:
-            if active:
-                return mosaic_id
-            if not filled and not new_active:
-                new_active = mosaic_id
-        return new_active
+            mgmt_service.finish_mosaic(metadata)
+            mgmt_service.set_next_mosaic_active(metadata)
 
     @staticmethod
     def _get_segment_sample(brightness: int, mosaic_id: str, sample_size: int) -> List[Segment]:

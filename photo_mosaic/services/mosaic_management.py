@@ -1,8 +1,9 @@
 import json
 import random
 import uuid
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
+from fastapi import HTTPException
 from PIL.Image import Image
 
 from photo_mosaic.models.app_config import get_config
@@ -264,10 +265,23 @@ class MosaicManagementService:
                 results.append({"id": mosaic_id, "index": index, "title": title})
         return results
 
-    @staticmethod
-    def delete_mosaic(mosaic_id: str):
+    def delete_mosaic(self, mosaic_id: str):
+        """
+        Delete a mosaic from the db and set next mosaic active
+        Args:
+            mosaic_id: The mosaic id
+
+        Raises:
+            HTTPException: Mosaic does not exist
+
+        """
+        if not db.mosaic_exists(mosaic_id):
+            raise HTTPException(status_code=404, detail=f"Mosaic {mosaic_id} does not exist.")
+        metadata = db.read_mosaic_metadata(mosaic_id)
         db.delete_mosaic_metadata(mosaic_id)
         db.commit()
+        if metadata.active:
+            self.set_next_mosaic_active(metadata)
 
     @staticmethod
     def reset_mosaic(mosaic_id: str) -> str:
@@ -324,6 +338,92 @@ class MosaicManagementService:
         db.commit()
 
         return mosaic_id
+
+    @staticmethod
+    def finish_mosaic(metadata: MosaicMetadata):
+        """
+        Set inactive, fill remaining segments and create final jpegs
+
+        Args:
+            metadata: The metadata of the mosaic that shall be terminated
+
+        """
+        metadata.filled = True
+        metadata.active = False
+        db.update_mosaic_metadata(metadata)
+        db.commit()
+
+        # fill remaining unfilled segments with original data and update artefacts
+        orig_pixels = db.read_image_pixels(metadata.id, IMAGE_PIXELS_CATEGORY_ORIGINAL)
+        current_pixels = db.read_image_pixels(metadata.id, IMAGE_PIXELS_CATEGORY_CURRENT)
+        segments = db.get_segments(mosaic_id=metadata.id, filled=False, fillable=True)
+        for seg in segments:
+            segment_data = orig_pixels.pixel_array[seg.y_min : seg.y_max, seg.x_min : seg.x_max]
+            current_pixels.pixel_array[seg.y_min : seg.y_max, seg.x_min : seg.x_max] = segment_data
+        db.upsert_image_pixels(current_pixels)
+        cur_pil = np2pil(current_pixels.pixel_array)
+        current_jpeg = RawImage(
+            mosaic_id=metadata.id,
+            category=RAW_IMAGE_CURRENT_JPEG,
+            image_bytes=pil2bytes(cur_pil),
+        )
+        db.upsert_raw_image(current_jpeg)
+
+        # update current image jpeg thumbnail
+        cur_pil.thumbnail((get_config().current_image_thumbnail_size, get_config().current_image_thumbnail_size))
+        current_jpeg_small = RawImage(
+            mosaic_id=metadata.id, category=RAW_IMAGE_CURRENT_SMALL_JPEG, image_bytes=pil2bytes(cur_pil)
+        )
+        db.upsert_raw_image(current_jpeg_small)
+
+    def set_next_mosaic_active(self, metadata: MosaicMetadata):
+        """
+        Try to find the next mosaic, if None is available clone the existing original mosaics and set
+        the first of them as active
+
+        Args:
+            metadata: The metadata of the mosaic that shall be terminated
+
+        """
+        # check if other fillable mosaics are available
+        next_active_mosaic_id = self.get_next_mosaic_id()
+        if next_active_mosaic_id:
+            # set next fillable mosaic to active
+            new_active_mosaic = db.read_mosaic_metadata(next_active_mosaic_id)
+            new_active_mosaic.active = True
+            db.update_mosaic_metadata(new_active_mosaic)
+            db.commit()
+        else:
+            # no fillable mosaics are available -> clone all original mosaics and set the first of them as active
+            # to ensure endless filling of mosaics
+            mosaic_list = db.read_mosaic_list()
+            original_mosaics = []
+            for m_id, _, _, _, _, original in mosaic_list:
+                if original:
+                    original_mosaics.append(m_id)
+            for i, m_id in enumerate(original_mosaics):
+                original = db.read_image_pixels(m_id, IMAGE_PIXELS_CATEGORY_ORIGINAL)
+                original = pil2bytes(np2pil(original.pixel_array))
+                new_id = mgmt_service.create_mosaic(original, metadata.mosaic_config)
+
+                new_metadata = db.read_mosaic_metadata(new_id)
+                new_metadata.original = False
+                if i == 0:
+                    new_metadata.active = True
+                db.update_mosaic_metadata(new_metadata)
+                db.commit()
+
+    @staticmethod
+    def get_next_mosaic_id() -> Optional[str]:
+        """
+        Returns the active mosaic. If no active mosaic is found, return the next fillable mosaic.
+        If no fillable mosaic is found return None.
+        """
+        mosaic_list = db.read_mosaic_list()
+        for mosaic_id, _, _, active, filled, _ in mosaic_list:
+            if not filled and not active:
+                return mosaic_id
+        return None
 
 
 mgmt_service = MosaicManagementService()

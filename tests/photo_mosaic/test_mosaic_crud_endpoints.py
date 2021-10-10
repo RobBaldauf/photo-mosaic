@@ -43,7 +43,7 @@ image_0_small_reduced_brightness = np.ones((512, 384, 3), dtype="uint8") * 25
 def prepare_db(request, tmp_path):
     db_path = tmp_path / "db"
     db_path.mkdir()
-    os.environ["SQL_LITE_PATH"] = str(db_path)
+    os.environ["SQLITE_PATH"] = str(db_path)
 
     from photo_mosaic.app import app
     from photo_mosaic.services.persistence import db
