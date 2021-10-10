@@ -1,6 +1,7 @@
 from typing import List, Tuple
 
 from fastapi import HTTPException
+from PIL import ImageOps
 from PIL.Image import Image
 
 from photo_mosaic.models.app_config import get_config
@@ -99,6 +100,7 @@ class MosaicFillingService:
         """
         num_segments = 5 if quick_fill else 1
         query_image = bytes2pil(query_image_bytes)
+        query_image = ImageOps.exif_transpose(query_image)  # correct rotation of image if EXIF orientation flag is set
         brightness = get_brightness_category(query_image)
         segments = self._get_segment_sample(brightness, mosaic_id, num_segments)
         self._fill_segments(mosaic_id, query_image, segments)
