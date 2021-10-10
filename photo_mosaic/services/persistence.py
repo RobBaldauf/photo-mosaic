@@ -243,7 +243,7 @@ class SQLitePersistenceService:
         if len(rows) == 0:
             raise HTTPException(
                 status_code=404,
-                detail=f"No raw image exist for mosaic_id={mosaic_id} " f"AND category={category} does not exist.",
+                detail=f"No raw image exists for mosaic_id={mosaic_id} " f"AND category={category}.",
             )
         row = rows[0]
         return ImagePixels(mosaic_id=mosaic_id, category=category, pixel_array=row[0])
