@@ -91,7 +91,7 @@ cur_jpeg_small_1 = RawImage(
 def prepare_db(request, tmp_path):
     db_path = tmp_path / "db"
     db_path.mkdir()
-    os.environ["SQL_LITE_PATH"] = str(db_path)
+    os.environ["SQLITE_PATH"] = str(db_path)
 
     from photo_mosaic.services.persistence import db
 

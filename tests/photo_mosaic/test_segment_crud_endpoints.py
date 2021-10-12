@@ -122,7 +122,7 @@ filling_gif_0 = RawImage(mosaic_id=m_0.id, category=RAW_IMAGE_FILLING_GIF, image
 def prepare_db(request, tmp_path):
     db_path = tmp_path / "db"
     db_path.mkdir()
-    os.environ["SQL_LITE_PATH"] = str(db_path)
+    os.environ["SQLITE_PATH"] = str(db_path)
 
     from photo_mosaic.services.persistence import db
 
@@ -203,10 +203,3 @@ def test_list_segments(prepare_db):
         ]
     }
     assert response.json() == expected_res
-
-
-# def test_reset_segment(prepare_db):#
-#     # pylint: disable=redefined-outer-name
-#     client, db = prepare_db
-#     response = client.post(f"/mosaic/{m_0.id}/segment/{s_2.id}/reset")
-#     assert response.status_code == 200
