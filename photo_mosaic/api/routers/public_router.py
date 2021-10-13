@@ -6,8 +6,14 @@ from fastapi.responses import JSONResponse, Response
 from photo_mosaic.services.mosaic_filling import filling_service
 from photo_mosaic.services.mosaic_management import mgmt_service
 from photo_mosaic.utils.request_validation import validate_request_uuid
+from photo_mosaic.utils.version import version
 
 router = APIRouter()
+
+
+@router.get("/", include_in_schema=False, summary="Root path endpoint showing the api version")
+async def root():
+    return {"photo-mosaic": {"version": version()}}
 
 
 @router.get("/mosaic/list", name="list_all_mosaics", summary="List the ids of all available mosaics.")

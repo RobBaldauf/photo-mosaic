@@ -24,4 +24,4 @@ COPY VERSION .
 COPY photo_mosaic/ ./photo_mosaic
 
 # run app
-ENTRYPOINT ["./run_app.sh"]
+CMD ["./run_app.sh"]

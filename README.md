@@ -30,7 +30,7 @@ docker build -t photo-mosaic .
    the SQLite DB file (e.g. ~ /mosaic_db).
 
 ```shell
-docker run -t -i -p 8111:8111 -v <your_db_folder>:/db photo-mosaic:latest
+docker run --restart unless-stopped -t -i -p 8111:8111 -v <your_db_folder>:/db photo-mosaic:latest
 ```
 
 ### Production Docker
@@ -54,7 +54,7 @@ This is the API KEY you need to access the admin endpoints of the API.
    the SQLite DB file (e.g. ~ /mosaic_db).
 
 ```shell
-docker run -t -i -p 8111:8111 -v <your_db_folder>:/db photo-mosaic:latest
+docker run --restart unless-stopped -t -i -p 8111:8111 -v <your_db_folder>:/db photo-mosaic:latest
 ```
 
 ## Run locally
