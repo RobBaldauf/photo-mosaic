@@ -4,6 +4,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from photo_mosaic.api.api import api
 from photo_mosaic.models.app_config import get_config
@@ -62,6 +63,7 @@ app = FastAPI(
     redoc_url=None,
 )
 app.include_router(router=api)
+Instrumentator().instrument(app).expose(app, include_in_schema=False)
 
 
 @app.on_event("startup")

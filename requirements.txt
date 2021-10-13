@@ -9,3 +9,4 @@ pylint==2.8.2
 tensorflow==2.3.3
 tensorflow-hub==0.7.0
 pytest==6.2.4
+prometheus-fastapi-instrumentator==5.7.1

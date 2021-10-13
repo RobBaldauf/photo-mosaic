@@ -27,7 +27,7 @@ class SQLitePersistenceService:
 
     def __init__(self, path: str):
         if not os.path.isdir(path):
-            raise ValueError(f"SQL_LITE_PATH {path} is not a directory!")
+            raise ValueError(f"SQLITE_PATH {path} is not a directory!")
 
         self._path = os.path.join(path, "mosaic.db")
         self._connection = None
