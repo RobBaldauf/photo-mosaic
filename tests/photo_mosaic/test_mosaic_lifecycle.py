@@ -299,9 +299,13 @@ def test_mosaic_delete_last(prepare_db):
 def test_mosaic_fill_delete_add_fill_delete_delete_fill(prepare_db):
     # pylint: disable=redefined-outer-name
     client, db = prepare_db
+    config_2 = config.copy()
+    config_2.title = "Test2"
+    config_3 = config.copy()
+    config_3.title = "Test3"
     mosaic_id_0 = create_mosaic(client, image_0, config)
-    mosaic_id_1 = create_mosaic(client, image_0, config)
-    mosaic_id_2 = create_mosaic(client, image_0, config)
+    mosaic_id_1 = create_mosaic(client, image_0, config_2)
+    mosaic_id_2 = create_mosaic(client, image_0, config_3)
 
     # fill mosaic
     for _ in range(10):
@@ -340,6 +344,8 @@ def test_mosaic_fill_delete_add_fill_delete_delete_fill(prepare_db):
     assert metadata_3.original is False
     assert metadata_4.active is False
     assert metadata_4.original is False
+    assert metadata_0.mosaic_config.title == metadata_3.mosaic_config.title
+    assert metadata_2.mosaic_config.title == metadata_4.mosaic_config.title
 
     # delete mosaic 2
     response = client.delete(f"/mosaic/{mosaic_id_2}")
@@ -376,6 +382,7 @@ def test_mosaic_fill_delete_add_fill_delete_delete_fill(prepare_db):
     assert metadata_4.active is False
     assert metadata_5.active is True
     assert metadata_5.original is False
+    assert metadata_0.mosaic_config.title == metadata_5.mosaic_config.title
 
 
 def test_mosaic_delete_last_original(prepare_db):

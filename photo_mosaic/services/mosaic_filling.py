@@ -199,7 +199,7 @@ class MosaicFillingService:
         stats = db.get_segment_stats(mosaic_id)
         if stats[0] + stats[1] + stats[2] < get_config().num_segments_min and not metadata.filled:
             mgmt_service.finish_mosaic(metadata)
-            mgmt_service.set_next_mosaic_active(metadata)
+            mgmt_service.set_next_mosaic_active()
 
     @staticmethod
     def _get_segment_sample(brightness: int, mosaic_id: str, sample_size: int) -> List[Segment]:

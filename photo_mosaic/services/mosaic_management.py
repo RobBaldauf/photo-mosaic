@@ -281,7 +281,7 @@ class MosaicManagementService:
         db.delete_mosaic_metadata(mosaic_id)
         db.commit()
         if metadata.active:
-            self.set_next_mosaic_active(metadata)
+            self.set_next_mosaic_active()
 
     @staticmethod
     def update_mosaic_state(mosaic_id: str, active: bool, filled: bool, original: bool):
@@ -470,22 +470,19 @@ class MosaicManagementService:
         )
         db.upsert_raw_image(current_jpeg_small)
 
-    def set_next_mosaic_active(self, metadata: MosaicMetadata):
+    def set_next_mosaic_active(self):
         """
         Try to find the next mosaic, if None is available clone the existing original mosaics and set
         the first of them as active
-
-        Args:
-            metadata: The metadata of the mosaic that shall be terminated
 
         """
         # check if other fillable mosaics are available
         next_active_mosaic_id = self.get_next_mosaic_id()
         if next_active_mosaic_id:
             # set next fillable mosaic to active
-            new_active_mosaic = db.read_mosaic_metadata(next_active_mosaic_id)
-            new_active_mosaic.active = True
-            db.update_mosaic_metadata(new_active_mosaic)
+            new_active_mosaic_meta = db.read_mosaic_metadata(next_active_mosaic_id)
+            new_active_mosaic_meta.active = True
+            db.update_mosaic_metadata(new_active_mosaic_meta)
             db.commit()
         else:
             # no fillable mosaics are available -> clone all original mosaics and set the first of them as active
@@ -496,9 +493,10 @@ class MosaicManagementService:
                 if original:
                     original_mosaics.append(m_id)
             for i, m_id in enumerate(original_mosaics):
+                old_metadata = db.read_mosaic_metadata(m_id)
                 original = db.read_image_pixels(m_id, IMAGE_PIXELS_CATEGORY_ORIGINAL)
                 original = pil2bytes(np2pil(original.pixel_array))
-                new_id = mgmt_service.create_mosaic(original, metadata.mosaic_config)
+                new_id = mgmt_service.create_mosaic(original, old_metadata.mosaic_config)
 
                 new_metadata = db.read_mosaic_metadata(new_id)
                 new_metadata.original = False
