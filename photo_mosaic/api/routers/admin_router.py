@@ -134,6 +134,33 @@ async def delete_mosaic(mosaic_id: str, key: APIKey = Depends(auth_service.admin
         raise HTTPException(status_code=500, detail="An unknown server error occurred") from exc
 
 
+@router.post(
+    "/mosaic/{mosaic_id}/states",
+    name="update_mosaic_state",
+    summary="Update the state of a mosaic. This might lead to invalid application states and unpredicted mosaic"
+    " lifecycle behaviour.",
+)
+async def update_mosaic_state(
+    mosaic_id: str,
+    active: bool = Form(False, description="Mark the mosaic as active. Only one mosaic" " should be active."),
+    filled: bool = Form(
+        False, description="Mark the mosaic as filled. Indictates that no more segments shall be" " filled in a mosaic."
+    ),
+    original: bool = Form(False, description="Mark a mosaic as Original (created by the user)."),
+    key: APIKey = Depends(auth_service.admin_auth),
+) -> JSONResponse:
+    # pylint: disable=unused-argument
+    try:
+        m_id = validate_request_uuid(mosaic_id, "mosaic")
+        mgmt_service.update_mosaic_state(m_id, active, filled, original)
+        return JSONResponse(content={"msg": "Mosaic state updated!"}, headers={"mosaic_id": m_id})
+    except HTTPException:
+        raise
+    except BaseException as exc:
+        logging.error("", exc_info=True)
+        raise HTTPException(status_code=500, detail="An unknown server error occurred") from exc
+
+
 @router.get(
     "/mosaic/{mosaic_id}/segment/list",
     name="list_segments",

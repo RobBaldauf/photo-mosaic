@@ -246,3 +246,35 @@ def test_create_mosaic_invalid_param(prepare_db):
         },
     )
     assert response.status_code == 422
+
+
+def test_update_mosaic_state(prepare_db):
+    # pylint: disable=redefined-outer-name
+    client, db = prepare_db
+    response = client.post(
+        "/mosaic/",
+        files={"file": ("filename", pil2bytes(np2pil(image_0)), "image/jpeg")},
+        data={
+            "title": config.title,
+            "num_segments": config.num_segments,
+            "mosaic_bg_brightness": config.mosaic_bg_brightness,
+            "mosaic_blend_value": config.mosaic_blend_value,
+            "segment_blend_value": config.segment_blend_value,
+            "segment_blur_low": config.segment_blur_low,
+            "segment_blur_medium": config.segment_blur_medium,
+            "segment_blur_high": config.segment_blur_high,
+        },
+    )
+    assert response.status_code == 200
+    mosaic_id = response.headers["mosaic_id"]
+
+    response = client.post(
+        f"/mosaic/{mosaic_id}/states",
+        data={"active": False, "filled": True, "original": False},
+    )
+    assert response.status_code == 200
+
+    mosaics = db.read_mosaic_list()
+    assert mosaics[0][3] == 0
+    assert mosaics[0][4] == 1
+    assert mosaics[0][5] == 0

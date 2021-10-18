@@ -127,6 +127,7 @@ def test_mosaic_end(prepare_db):
         and new_metadata.n_cols == metadata.n_cols
         and new_metadata.segment_height == metadata.segment_height
         and new_metadata.segment_width == metadata.segment_width
+        and new_metadata.mosaic_config.title == metadata.mosaic_config.title
     )
 
 
@@ -413,3 +414,148 @@ def test_mosaic_delete_last_original(prepare_db):
     metadata_1 = db.read_mosaic_metadata(metadata_1.id)
     assert metadata_1.filled is True
     assert metadata_1.active is False
+
+
+def test_delete_multiple_actives(prepare_db):
+    # pylint: disable=redefined-outer-name
+    client, db = prepare_db
+    mosaic_id_0 = create_mosaic(client, image_0, config)
+    mosaic_id_1 = create_mosaic(client, image_0, config)
+    mosaic_id_2 = create_mosaic(client, image_0, config)
+    mosaic_id_3 = create_mosaic(client, image_0, config)
+    meta_0 = db.read_mosaic_metadata(mosaic_id_0)
+    meta_0.active = True
+    meta_0.filled = False
+    meta_0.original = True
+    db.update_mosaic_metadata(meta_0)
+    meta_1 = db.read_mosaic_metadata(mosaic_id_1)
+    meta_1.active = True
+    meta_1.filled = False
+    meta_1.original = True
+    db.update_mosaic_metadata(meta_1)
+    meta_2 = db.read_mosaic_metadata(mosaic_id_2)
+    meta_2.active = True
+    meta_2.filled = False
+    meta_2.original = False
+    db.update_mosaic_metadata(meta_2)
+    meta_3 = db.read_mosaic_metadata(mosaic_id_3)
+    meta_3.active = True
+    meta_3.filled = False
+    meta_3.original = False
+    db.update_mosaic_metadata(meta_3)
+
+    # delete mosaic 1
+    response = client.delete(f"/mosaic/{mosaic_id_1}")
+    assert response.status_code == 200
+
+    mosaics = db.read_mosaic_list()
+    assert mosaics[0][3] == 1
+    assert mosaics[0][5] == 1
+    assert mosaics[1][3] == 0
+    assert mosaics[1][5] == 0
+    assert mosaics[2][3] == 0
+    assert mosaics[2][5] == 0
+
+
+def test_fill_multiple_actives(prepare_db):
+    # pylint: disable=redefined-outer-name
+    client, db = prepare_db
+    mosaic_id_0 = create_mosaic(client, image_0, config)
+    mosaic_id_1 = create_mosaic(client, image_0, config)
+    mosaic_id_2 = create_mosaic(client, image_0, config)
+    mosaic_id_3 = create_mosaic(client, image_0, config)
+    meta_0 = db.read_mosaic_metadata(mosaic_id_0)
+    meta_0.active = True
+    meta_0.filled = False
+    meta_0.original = True
+    db.update_mosaic_metadata(meta_0)
+    meta_1 = db.read_mosaic_metadata(mosaic_id_1)
+    meta_1.active = True
+    meta_1.filled = False
+    meta_1.original = True
+    db.update_mosaic_metadata(meta_1)
+    meta_2 = db.read_mosaic_metadata(mosaic_id_2)
+    meta_2.active = True
+    meta_2.filled = False
+    meta_2.original = False
+    db.update_mosaic_metadata(meta_2)
+    meta_3 = db.read_mosaic_metadata(mosaic_id_3)
+    meta_3.active = True
+    meta_3.filled = False
+    meta_3.original = False
+    db.update_mosaic_metadata(meta_3)
+
+    # fill mosaic 2
+    for _ in range(10):
+        response = client.post(
+            f"/mosaic/{meta_2.id}/segment",
+            files={"file": ("filename", pil2bytes(np2pil(bright_portrait)), "image/jpeg")},
+        )
+        assert response.status_code == 200
+
+    mosaics = db.read_mosaic_list()
+    assert mosaics[0][3] == 1
+    assert mosaics[0][5] == 1
+    assert mosaics[1][3] == 0
+    assert mosaics[1][5] == 1
+    assert mosaics[2][3] == 0
+    assert mosaics[2][5] == 0
+    assert mosaics[3][3] == 0
+    assert mosaics[3][5] == 0
+
+
+def test_correct_multiple_actives(prepare_db):
+    # pylint: disable=redefined-outer-name
+    client, db = prepare_db
+    mosaic_id_0 = create_mosaic(client, image_0, config)
+    mosaic_id_1 = create_mosaic(client, image_0, config)
+    mosaic_id_2 = create_mosaic(client, image_0, config)
+    mosaic_id_3 = create_mosaic(client, image_0, config)
+    meta_0 = db.read_mosaic_metadata(mosaic_id_0)
+    meta_0.active = True
+    meta_0.filled = False
+    meta_0.original = True
+    db.update_mosaic_metadata(meta_0)
+    meta_1 = db.read_mosaic_metadata(mosaic_id_1)
+    meta_1.active = True
+    meta_1.filled = False
+    meta_1.original = True
+    db.update_mosaic_metadata(meta_1)
+    meta_2 = db.read_mosaic_metadata(mosaic_id_2)
+    meta_2.active = True
+    meta_2.filled = False
+    meta_2.original = False
+    db.update_mosaic_metadata(meta_2)
+    meta_3 = db.read_mosaic_metadata(mosaic_id_3)
+    meta_3.active = True
+    meta_3.filled = False
+    meta_3.original = False
+    db.update_mosaic_metadata(meta_3)
+
+    response = client.post(
+        f"/mosaic/{mosaic_id_1}/states",
+        data={"active": False, "filled": False, "original": True},
+    )
+    assert response.status_code == 200
+
+    response = client.post(
+        f"/mosaic/{mosaic_id_2}/states",
+        data={"active": False, "filled": False, "original": False},
+    )
+    assert response.status_code == 200
+
+    response = client.post(
+        f"/mosaic/{mosaic_id_3}/states",
+        data={"active": False, "filled": False, "original": False},
+    )
+    assert response.status_code == 200
+
+    mosaics = db.read_mosaic_list()
+    assert mosaics[0][3] == 1
+    assert mosaics[0][5] == 1
+    assert mosaics[1][3] == 0
+    assert mosaics[1][5] == 1
+    assert mosaics[2][3] == 0
+    assert mosaics[2][5] == 0
+    assert mosaics[3][3] == 0
+    assert mosaics[3][5] == 0

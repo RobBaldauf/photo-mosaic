@@ -284,6 +284,28 @@ class MosaicManagementService:
             self.set_next_mosaic_active(metadata)
 
     @staticmethod
+    def update_mosaic_state(mosaic_id: str, active: bool, filled: bool, original: bool):
+        """
+        Update the state of a mosaic to the given values
+        Args:
+            mosaic_id: The mosaic id
+            active: Mosaic is active
+            filled: All segments of the mosaic have been filled
+            original: Mosaic is user-created
+
+        Raises:
+            HTTPException: Mosaic does not exist
+
+        """
+        if not db.mosaic_exists(mosaic_id):
+            raise HTTPException(status_code=404, detail=f"Mosaic {mosaic_id} does not exist.")
+        metadata = db.read_mosaic_metadata(mosaic_id)
+        metadata.active = active
+        metadata.filled = filled
+        metadata.original = original
+        db.update_mosaic_metadata(metadata)
+
+    @staticmethod
     def reset_mosaic(mosaic_id: str):
         """
         Reset a mosaic to its state right after creation.
@@ -488,14 +510,31 @@ class MosaicManagementService:
     @staticmethod
     def get_next_mosaic_id() -> Optional[str]:
         """
-        Returns the active mosaic. If no active mosaic is found, return the next fillable mosaic.
+        Returns next fillable mosaic.
         If no fillable mosaic is found return None.
         """
         mosaic_list = db.read_mosaic_list()
+        active_mosaics = []
+        fillable_mosaics = []
         for mosaic_id, _, _, active, filled, _ in mosaic_list:
-            if not filled and not active:
-                return mosaic_id
-        return None
+            if not filled:
+                fillable_mosaics.append(mosaic_id)
+            if active:
+                active_mosaics.append(mosaic_id)
+
+        if len(active_mosaics) == 0:
+            # no active mosaic left -> find a fillable mosaic
+            if len(fillable_mosaics) > 0:
+                return fillable_mosaics[0]
+            return None
+
+        if len(active_mosaics) > 1:
+            # Multiple active mosaic (this should never happen) -> change status so only the first one is active
+            for m in active_mosaics[1:]:
+                meta = db.read_mosaic_metadata(mosaic_id=m)
+                meta.active = False
+                db.update_mosaic_metadata(meta)
+        return active_mosaics[0]
 
 
 mgmt_service = MosaicManagementService()
