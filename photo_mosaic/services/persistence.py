@@ -1,6 +1,7 @@
 import io
 import os
 import sqlite3
+import time
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -469,6 +470,17 @@ def _read_np_array(blob):
     byte_arr = io.BytesIO(blob)
     byte_arr.seek(0)
     return np.load(byte_arr)
+
+
+class FilePersistenceService:
+    def __init__(self):
+        self.path = get_config().uploaded_image_path
+        if not os.path.isdir(self.path):
+            raise ValueError(f"UPLOADED_IMAGE_PATH {self.path} is not a directory!")
+
+    def dump_image(self, mosaic_id: str, image: bytes):
+        with open(os.path.join(self.path, f"{mosaic_id}_{int(time.time())}.png"), "wb") as f_h:
+            f_h.write(image)
 
 
 # register serialization/deserialization for np arrays

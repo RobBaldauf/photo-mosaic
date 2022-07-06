@@ -18,7 +18,7 @@ from photo_mosaic.models.raw_image import (
 from photo_mosaic.models.segment import Segment
 from photo_mosaic.services.mosaic_management import mgmt_service
 from photo_mosaic.services.nsfw import NSFWService
-from photo_mosaic.services.persistence import db
+from photo_mosaic.services.persistence import FilePersistenceService, db
 from photo_mosaic.utils.animation import mosaic_2_gif
 from photo_mosaic.utils.image_processing import (
     HIGH_BRIGHTNESS,
@@ -200,6 +200,9 @@ class MosaicFillingService:
         if stats[0] + stats[1] + stats[2] < get_config().num_segments_min and not metadata.filled:
             mgmt_service.finish_mosaic(metadata)
             mgmt_service.set_next_mosaic_active()
+
+        if get_config().uploaded_image_path:
+            FilePersistenceService().dump_image(mosaic_id, pil2bytes(q_image))
 
     @staticmethod
     def _get_segment_sample(brightness: int, mosaic_id: str, sample_size: int) -> List[Segment]:

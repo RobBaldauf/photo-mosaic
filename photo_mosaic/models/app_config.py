@@ -19,8 +19,9 @@ class AppConfig(BaseSettings):
     enable_nsfw_content_filter: bool
     nsfw_model_path: str
 
-    # db config
+    # persistence config
     sqlite_path: str
+    uploaded_image_path: str
 
     # Mosaic config
     original_image_max_size: int

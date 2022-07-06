@@ -37,6 +37,10 @@ def check_config() -> str:
 
     if not get_config().sqlite_path:
         raise ValueError("Please set SQL_LITE_PATH via '.env' file or environment variable!")
+    if get_config().uploaded_image_path:
+        print(f"Uploaded images will be stored to {get_config().uploaded_image_path}")
+    else:
+        print("UPLOADED_IMAGE_PATH is not set. Uploaded images will not be stored.")
     return documentation_url
 
 

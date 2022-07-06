@@ -1,5 +1,5 @@
 fastapi==0.65.2
-uvicorn[standard]==0.13.4
+uvicorn[standard]==0.17.5
 python-multipart==0.0.5
 pyjwt==2.0.1
 Pillow==9.0.1
